@@ -1,0 +1,30 @@
+<div class="flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900"><%= @import_template.name %></h1>
+    <p class="text-sm text-slate-500">Delimiter: <%= @import_template.delimiter %> · Header: <%= @import_template.header? ? "Yes" : "No" %></p>
+  </div>
+  <div class="flex gap-3">
+    <%= link_to "Edit", edit_import_template_path(@import_template), class: "rounded border border-slate-300 px-4 py-2" %>
+    <%= button_to "Delete", @import_template, method: :delete, data: { turbo_confirm: "Delete this template?" }, class: "rounded bg-rose-500 px-4 py-2 text-white" %>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Column Mapping</h2>
+  <table class="mt-4 w-full text-sm">
+    <thead>
+      <tr class="text-slate-500">
+        <th class="py-2">CSV Column</th>
+        <th class="py-2">Application Field</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @import_template.mapping.each do |column, attribute| %>
+        <tr class="border-t border-slate-100">
+          <td class="py-3"><%= column %></td>
+          <td class="py-3"><%= attribute.humanize %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>

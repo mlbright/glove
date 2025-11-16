@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Fearless" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Fearless">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= yield :head %>
+
+    <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
+    <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%# Includes all stylesheet files in app/assets/stylesheets %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="min-h-screen bg-slate-50">
+    <header class="bg-white shadow">
+      <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <%= link_to "Fearless Finance", user_signed_in? ? dashboard_path : root_path, class: "text-xl font-semibold text-slate-900" %>
+        <% if user_signed_in? %>
+          <div class="flex items-center gap-4 text-sm text-slate-600">
+            <span><%= current_user.display_name %></span>
+            <%= link_to "Dashboard", dashboard_path, class: "hover:text-slate-900" %>
+            <%= link_to "Accounts", accounts_path, class: "hover:text-slate-900" %>
+            <%= link_to "Transactions", transactions_path, class: "hover:text-slate-900" %>
+            <%= button_to "Sign out", destroy_user_session_path, method: :delete, class: "rounded bg-slate-100 px-3 py-1" %>
+          </div>
+        <% else %>
+          <%= link_to "Sign in", new_user_session_path, class: "text-sm text-slate-600" %>
+        <% end %>
+      </div>
+    </header>
+
+    <div class="mx-auto mt-6 max-w-6xl px-6">
+      <% flash.each do |type, message| %>
+        <div class="mb-4 rounded border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <%= message %>
+        </div>
+      <% end %>
+    </div>
+
+    <main class="mx-auto mt-4 max-w-6xl px-6 py-6">
+      <%= yield %>
+    </main>
+  </body>
+</html>

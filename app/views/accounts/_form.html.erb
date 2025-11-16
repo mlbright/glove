@@ -1,0 +1,21 @@
+<%= form_with model: @account, class: "space-y-4" do |form| %>
+  <div>
+    <%= form.label :name, class: "block text-sm font-medium text-slate-700" %>
+    <%= form.text_field :name, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.label :account_type, class: "block text-sm font-medium text-slate-700" %>
+    <%= form.select :account_type, Account.account_types.keys.map { |type| [type.humanize, type] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.label :color, class: "block text-sm font-medium text-slate-700" %>
+    <%= form.color_field :color, class: "mt-1 h-10 w-24 rounded border border-slate-300" %>
+  </div>
+  <div>
+    <%= form.label :description, class: "block text-sm font-medium text-slate-700" %>
+    <%= form.text_area :description, rows: 4, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.submit class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+  </div>
+<% end %>

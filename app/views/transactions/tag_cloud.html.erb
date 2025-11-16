@@ -1,0 +1,8 @@
+<h1 class="text-2xl font-semibold text-slate-900">Tag Cloud</h1>
+<div class="mt-6 flex flex-wrap gap-3">
+  <% @tag_totals.each do |(tag_id, tag_name), count| %>
+    <span class="rounded bg-slate-100 px-4 py-2 text-sm" style="font-size:<%= 0.9 + (count * 0.2) %>rem">
+      <%= tag_name %> (<%= count %>)
+    </span>
+  <% end %>
+</div>

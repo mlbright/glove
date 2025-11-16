@@ -1,0 +1,7 @@
+<h1 class="text-2xl font-semibold text-slate-900">Tag Cloud</h1>
+<p class="mt-2 text-sm text-slate-600">Click a tag to filter transactions.</p>
+<div class="mt-6 flex flex-wrap gap-3">
+  <% @tag_totals.each do |(tag_id, tag_name), count| %>
+    <%= link_to "#{tag_name} (#{count})", transactions_path(tag_id: tag_id), class: "rounded bg-slate-100 px-4 py-2 text-sm" %>
+  <% end %>
+</div>

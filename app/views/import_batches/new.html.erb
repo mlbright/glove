@@ -1,0 +1,16 @@
+<h1 class="text-2xl font-semibold text-slate-900">New Import Batch</h1>
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <%= form_with model: @import_batch, class: "space-y-4", html: { multipart: true } do |form| %>
+    <div>
+      <%= form.label :import_template_id, "Template", class: "block text-sm font-medium" %>
+      <%= form.select :import_template_id, @templates.map { |template| [template.name, template.id] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div>
+      <%= form.label :csv_file, class: "block text-sm font-medium" %>
+      <%= form.file_field :csv_file, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div>
+      <%= form.submit "Upload", class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+    </div>
+  <% end %>
+</div>

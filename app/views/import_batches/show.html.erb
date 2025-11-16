@@ -1,0 +1,37 @@
+<div class="flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900">Import Batch</h1>
+    <p class="text-sm text-slate-500">Template: <%= @import_batch.import_template.name %></p>
+  </div>
+  <% if @import_batch.pending? %>
+    <%= button_to "Start import", start_import_batch_path(@import_batch), method: :post, class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+  <% end %>
+</div>
+
+<div class="mt-6 grid gap-6 md:grid-cols-2">
+  <div class="rounded bg-white p-6 shadow">
+    <h2 class="text-lg font-semibold">Status</h2>
+    <dl class="mt-4 space-y-2 text-sm text-slate-600">
+      <div class="flex justify-between">
+        <dt>Status</dt>
+        <dd><%= @import_batch.status.humanize %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt>Processed</dt>
+        <dd><%= @import_batch.processed_count %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt>Failed</dt>
+        <dd><%= @import_batch.failed_count %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt>Finished at</dt>
+        <dd><%= @import_batch.finished_at&.to_s(:long) || "—" %></dd>
+      </div>
+    </dl>
+  </div>
+  <div class="rounded bg-white p-6 shadow">
+    <h2 class="text-lg font-semibold">Notes</h2>
+    <pre class="mt-4 whitespace-pre-wrap text-sm text-slate-600"><%= @import_batch.notes.presence || "No notes" %></pre>
+  </div>
+</div>

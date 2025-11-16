@@ -1,0 +1,49 @@
+<div class="flex items-center justify-between">
+  <h1 class="text-2xl font-semibold text-slate-900">Transactions</h1>
+  <%= link_to "New transaction", new_transaction_path, class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+</div>
+
+<div class="mt-4 flex gap-4">
+  <%= form_with url: transactions_path, method: :get, class: "flex flex-wrap gap-4" do |form| %>
+    <div>
+      <%= form.label :account_id, "Account", class: "block text-sm" %>
+      <%= form.select :account_id, options_for_select([["All", nil]] + @accounts.map { |a| [a.name, a.id] }, params[:account_id]), {}, class: "rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div>
+      <%= form.label :tag_id, "Tag", class: "block text-sm" %>
+      <%= form.select :tag_id, options_for_select([["All", nil]] + @tags.map { |t| [t.name, t.id] }, params[:tag_id]), {}, class: "rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div class="self-end">
+      <%= form.submit "Filter", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
+    </div>
+  <% end %>
+</div>
+
+<table class="mt-6 w-full text-left text-sm">
+  <thead>
+    <tr class="text-slate-500">
+      <th class="py-2">Date</th>
+      <th class="py-2">Account</th>
+      <th class="py-2">Type</th>
+      <th class="py-2">Memo</th>
+      <th class="py-2">Tags</th>
+      <th class="py-2 text-right">Amount</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @transactions.each do |tx| %>
+      <tr class="border-t border-slate-100">
+        <td class="py-3"><%= tx.occurred_on.to_s(:long) %></td>
+        <td class="py-3"><%= tx.account.name %></td>
+        <td class="py-3"><%= tx.entry_type.humanize %></td>
+        <td class="py-3"><%= tx.memo.presence || "—" %></td>
+        <td class="py-3 text-slate-500"><%= tx.tags.map(&:name).join(', ').presence || "—" %></td>
+        <td class="py-3 text-right font-semibold <%= tx.income? ? "text-emerald-600" : "text-rose-500" %>"><%= number_to_currency(tx.amount_signed) %></td>
+        <td class="py-3 text-right">
+          <%= link_to "View", tx, class: "text-emerald-600" %>
+        </td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

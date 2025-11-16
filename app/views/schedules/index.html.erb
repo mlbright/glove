@@ -1,0 +1,27 @@
+<div class="flex items-center justify-between">
+  <h1 class="text-2xl font-semibold text-slate-900">Schedules</h1>
+  <%= link_to "New schedule", new_schedule_path, class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+</div>
+
+<table class="mt-6 w-full text-left text-sm">
+  <thead>
+    <tr class="text-slate-500">
+      <th class="py-2">Name</th>
+      <th class="py-2">Frequency</th>
+      <th class="py-2">Next occurs</th>
+      <th class="py-2">Active</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <% @schedules.each do |schedule| %>
+      <tr class="border-t border-slate-100">
+        <td class="py-3"><%= schedule.name %></td>
+        <td class="py-3"><%= schedule.frequency.humanize %> every <%= schedule.interval_value %></td>
+        <td class="py-3"><%= schedule.next_occurs_on.to_s(:long) %></td>
+        <td class="py-3"><%= schedule.active? ? "Yes" : "No" %></td>
+        <td class="py-3 text-right"><%= link_to "View", schedule_path(schedule), class: "text-emerald-600" %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>

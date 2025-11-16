@@ -1,0 +1,61 @@
+<div class="flex items-center justify-between">
+  <div>
+    <p class="text-sm uppercase text-slate-500"><%= @transaction.entry_type.humanize %></p>
+    <h1 class="text-3xl font-semibold <%= @transaction.income? ? "text-emerald-600" : "text-rose-500" %>"><%= number_to_currency(@transaction.amount_signed) %></h1>
+    <p class="mt-2 text-slate-600"><%= @transaction.account.name %> · <%= @transaction.occurred_on.to_s(:long) %></p>
+  </div>
+  <div class="flex gap-3">
+    <%= link_to "Edit", edit_transaction_path(@transaction), class: "rounded border border-slate-300 px-4 py-2" %>
+    <%= button_to "Delete", @transaction, method: :delete, data: { turbo_confirm: "Delete this transaction?" }, class: "rounded bg-rose-500 px-4 py-2 text-white" %>
+  </div>
+</div>
+
+<div class="mt-6 grid gap-6 md:grid-cols-2">
+  <div class="rounded bg-white p-6 shadow">
+    <h2 class="text-lg font-semibold">Details</h2>
+    <dl class="mt-4 space-y-2 text-sm text-slate-600">
+      <div class="flex justify-between">
+        <dt>Account</dt>
+        <dd><%= @transaction.account.name %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt>Status</dt>
+        <dd><%= @transaction.status.humanize %></dd>
+      </div>
+      <div class="flex justify-between">
+        <dt>Schedule</dt>
+        <dd><%= @transaction.schedule&.name || "One-time" %></dd>
+      </div>
+    </dl>
+    <p class="mt-4 text-sm text-slate-500"><%= @transaction.memo.presence || "No memo" %></p>
+  </div>
+
+  <div class="rounded bg-white p-6 shadow">
+    <h2 class="text-lg font-semibold">Tags</h2>
+    <div class="mt-4 flex flex-wrap gap-2">
+      <% if @transaction.tags.any? %>
+        <% @transaction.tags.each do |tag| %>
+          <span class="rounded bg-slate-100 px-3 py-1 text-sm"><%= tag.name %></span>
+        <% end %>
+      <% else %>
+        <p class="text-sm text-slate-500">No tags added.</p>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Audit trail</h2>
+  <% if @transaction.transaction_revisions.any? %>
+    <ul class="mt-4 space-y-3 text-sm text-slate-600">
+      <% @transaction.transaction_revisions.order(recorded_at: :desc).each do |revision| %>
+        <li class="border-l-2 border-slate-200 pl-4">
+          <p class="font-medium"><%= revision.action.humanize %> · <%= revision.recorded_at.to_s(:long) %></p>
+          <pre class="mt-1 rounded bg-slate-50 p-2 text-xs"><%= JSON.pretty_generate(revision.change_log) %></pre>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">No revisions yet.</p>
+  <% end %>
+</div>
