@@ -34,7 +34,7 @@
   <tbody>
     <% @transactions.each do |tx| %>
       <tr class="border-t border-slate-100">
-        <td class="py-3"><%= tx.occurred_on.to_s(:long) %></td>
+        <td class="py-3"><%= l(tx.occurred_on, format: :long) %></td>
         <td class="py-3"><%= tx.account.name %></td>
         <td class="py-3"><%= tx.entry_type.humanize %></td>
         <td class="py-3"><%= tx.memo.presence || "—" %></td>

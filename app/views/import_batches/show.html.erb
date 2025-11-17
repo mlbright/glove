@@ -17,6 +17,18 @@
         <dd><%= @import_batch.status.humanize %></dd>
       </div>
       <div class="flex justify-between">
+        <dt>Source file</dt>
+        <dd>
+          <% if @import_batch.csv_file.attached? %>
+            <%= link_to(@import_batch.source_filename || @import_batch.csv_file.filename.to_s,
+                        rails_blob_path(@import_batch.csv_file, disposition: "attachment"),
+                        class: "text-emerald-600") %>
+          <% else %>
+            —
+          <% end %>
+        </dd>
+      </div>
+      <div class="flex justify-between">
         <dt>Processed</dt>
         <dd><%= @import_batch.processed_count %></dd>
       </div>
@@ -26,7 +38,7 @@
       </div>
       <div class="flex justify-between">
         <dt>Finished at</dt>
-        <dd><%= @import_batch.finished_at&.to_s(:long) || "—" %></dd>
+        <dd><%= @import_batch.finished_at ? l(@import_batch.finished_at, format: :long) : "—" %></dd>
       </div>
     </dl>
   </div>

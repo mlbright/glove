@@ -33,7 +33,7 @@ module Transactions
 
       finalize_batch(processed:, failed:, errors:)
     rescue StandardError => e
-      finalize_batch(processed: 0, failed: 1, errors: [e.message], status: :failed)
+      finalize_batch(processed: 0, failed: 1, errors: [ e.message ], status: :failed)
       raise
     end
 
@@ -43,7 +43,8 @@ module Transactions
       csv_options = { headers: @template.header?, col_sep: @template.delimiter.presence || "," }
       @batch.csv_file.open(tmpdir: Dir.tmpdir) do |file|
         CSV.foreach(file.path, **csv_options).with_index do |row, index|
-          next if row.to_h.values.all?(&:blank?)
+          cells = row.is_a?(CSV::Row) ? row.to_h.values : Array(row)
+          next if cells.all?(&:blank?)
 
           yield row, index
         end
@@ -55,7 +56,7 @@ module Transactions
       tags = []
 
       @template.mapping.each do |column, attribute|
-        value = row[column]&.strip
+        value = value_from(row, column)
         next if value.blank?
 
         case attribute
@@ -77,8 +78,6 @@ module Transactions
           tags.concat(value.split(/[,;]/).map(&:strip))
         when "status"
           attrs[:status] = normalize_status(value)
-        when "schedule_name"
-          attrs[:schedule] = find_schedule(value)
         end
       end
 
@@ -86,7 +85,7 @@ module Transactions
       attrs[:amount] ||= 0
       attrs[:occurred_on] ||= Date.current
 
-      [attrs, tags.uniq]
+      [ attrs, tags.uniq ]
     end
 
     def parse_amount(value)
@@ -119,16 +118,19 @@ module Transactions
       end
     end
 
-    def find_schedule(name)
-      @user.schedules.find_or_create_by!(name: name) do |schedule|
-        schedule.frequency = :monthly
-        schedule.interval_value = 1
-        schedule.next_occurs_on = Date.current
-      end
-    end
-
     def default_account
       @default_account ||= @user.accounts.first || @user.accounts.create!(name: "General", account_type: :checking)
+    end
+
+    def value_from(row, column_key)
+      if @template.header?
+        row[column_key]&.to_s&.strip
+      else
+        index = column_key.to_i
+        return nil if index <= 0
+        cells = row.is_a?(CSV::Row) ? row.fields : row
+        cells[index - 1]&.to_s&.strip
+      end
     end
 
     def finalize_batch(processed:, failed:, errors:, status: nil)

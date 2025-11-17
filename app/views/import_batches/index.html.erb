@@ -21,7 +21,7 @@
         <td class="py-3"><%= batch.status.humanize %></td>
         <td class="py-3"><%= batch.processed_count %></td>
         <td class="py-3"><%= batch.failed_count %></td>
-        <td class="py-3"><%= batch.finished_at&.to_s(:long) || "—" %></td>
+        <td class="py-3"><%= batch.finished_at ? l(batch.finished_at, format: :long) : "—" %></td>
         <td class="py-3 text-right"><%= link_to "View", batch, class: "text-emerald-600" %></td>
       </tr>
     <% end %>

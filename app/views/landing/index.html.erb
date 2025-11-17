@@ -4,7 +4,17 @@
     Track income, expenses, and recurring cash flow securely with Google or GitHub sign-in.
   </p>
   <div class="mt-8 flex justify-center gap-4">
-    <%= link_to "Sign in with Google", user_google_oauth2_omniauth_authorize_path, class: "rounded bg-emerald-600 px-6 py-3 text-white font-medium" %>
-    <%= link_to "Sign in with GitHub", user_github_omniauth_authorize_path, class: "rounded border border-slate-300 px-6 py-3 text-slate-700 font-medium" %>
+    <%= button_to "Sign in with Google",
+                  user_google_oauth2_omniauth_authorize_path,
+                  method: :post,
+                  data: { turbo: false },
+                  class: "rounded bg-emerald-600 px-6 py-3 text-white font-medium",
+                  form: { class: "inline-block" } %>
+    <%= button_to "Sign in with GitHub",
+                  user_github_omniauth_authorize_path,
+                  method: :post,
+                  data: { turbo: false },
+                  class: "rounded border border-slate-300 px-6 py-3 text-slate-700 font-medium",
+                  form: { class: "inline-block" } %>
   </div>
 </div>

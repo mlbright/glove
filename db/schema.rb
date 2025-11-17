@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2025_11_16_184513) do
+ActiveRecord::Schema[8.1].define(version: 2025_11_16_194500) do
   create_table "accounts", force: :cascade do |t|
     t.integer "account_type", default: 0, null: false
     t.datetime "archived_at"
@@ -83,21 +83,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_16_184513) do
     t.index ["user_id"], name: "index_import_templates_on_user_id"
   end
 
-  create_table "schedules", force: :cascade do |t|
-    t.integer "account_id"
-    t.boolean "active", default: true, null: false
-    t.datetime "created_at", null: false
-    t.integer "frequency", default: 0, null: false
-    t.integer "interval_value", default: 1, null: false
-    t.json "metadata"
-    t.string "name", null: false
-    t.date "next_occurs_on", null: false
-    t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
-    t.index ["account_id"], name: "index_schedules_on_account_id"
-    t.index ["user_id"], name: "index_schedules_on_user_id"
-  end
-
   create_table "tags", force: :cascade do |t|
     t.string "color"
     t.datetime "created_at", null: false
@@ -143,7 +128,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_16_184513) do
     t.text "memo"
     t.text "notes"
     t.date "occurred_on", null: false
-    t.integer "schedule_id"
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
@@ -151,7 +135,6 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_16_184513) do
     t.index ["account_id"], name: "index_transactions_on_account_id"
     t.index ["entry_type"], name: "index_transactions_on_entry_type"
     t.index ["import_batch_id"], name: "index_transactions_on_import_batch_id"
-    t.index ["schedule_id"], name: "index_transactions_on_schedule_id"
     t.index ["user_id", "occurred_on"], name: "index_transactions_on_user_id_and_occurred_on"
     t.index ["user_id"], name: "index_transactions_on_user_id"
   end
@@ -178,15 +161,11 @@ ActiveRecord::Schema[8.1].define(version: 2025_11_16_184513) do
   add_foreign_key "import_batches", "import_templates"
   add_foreign_key "import_batches", "users"
   add_foreign_key "import_templates", "users"
-  add_foreign_key "schedules", "accounts"
-  add_foreign_key "schedules", "users"
   add_foreign_key "tags", "users"
-  add_foreign_key "transaction_revisions", "transactions"
   add_foreign_key "transaction_revisions", "users"
   add_foreign_key "transaction_tags", "tags"
   add_foreign_key "transaction_tags", "transactions"
   add_foreign_key "transactions", "accounts"
   add_foreign_key "transactions", "import_batches"
-  add_foreign_key "transactions", "schedules"
   add_foreign_key "transactions", "users"
 end

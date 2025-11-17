@@ -33,24 +33,47 @@
   </div>
 
   <div class="rounded bg-white p-6 shadow">
-    <h2 class="text-lg font-semibold text-slate-900">Upcoming schedules</h2>
-    <% if @upcoming_schedules.any? %>
-      <ul class="mt-4 space-y-3">
-        <% @upcoming_schedules.each do |schedule| %>
-          <li class="flex items-center justify-between text-sm text-slate-700">
-            <span>
-              <span class="font-medium"><%= schedule.name %></span>
-              <span class="text-slate-500">(<%= schedule.frequency.humanize %>)</span>
-            </span>
-            <span><%= schedule.next_occurs_on.to_s(:long) %></span>
-          </li>
-        <% end %>
-      </ul>
-    <% else %>
-      <p class="mt-4 text-sm text-slate-500">No upcoming schedules.</p>
-    <% end %>
-    <div class="mt-4 text-right">
-      <%= link_to "Manage schedules", schedules_path, class: "text-sm text-emerald-600" %>
+    <h2 class="text-lg font-semibold text-slate-900">Bulk import</h2>
+    <p class="mt-1 text-sm text-slate-500">Use templates to map CSV columns, then upload batches to create transactions in bulk.</p>
+
+    <div class="mt-4">
+      <p class="text-xs uppercase text-slate-500">Templates</p>
+      <% if @import_templates.any? %>
+        <ul class="mt-2 space-y-1 text-sm text-slate-700">
+          <% @import_templates.first(3).each do |template| %>
+            <li class="flex items-center justify-between">
+              <span><%= template.name %></span>
+              <span class="text-slate-400"><%= template.mapping.keys.count %> fields</span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="mt-2 text-sm text-slate-500">No templates yet.</p>
+      <% end %>
+    </div>
+
+    <div class="mt-6">
+      <p class="text-xs uppercase text-slate-500">Recent batches</p>
+      <% if @recent_import_batches.any? %>
+        <ul class="mt-2 space-y-2 text-sm text-slate-700">
+          <% @recent_import_batches.each do |batch| %>
+            <li class="flex items-center justify-between">
+              <div>
+                <p class="font-medium"><%= batch.import_template.name %></p>
+                <p class="text-xs text-slate-500"><%= batch.status.humanize %> • <%= batch.created_at.strftime("%b %d") %></p>
+              </div>
+              <span class="text-xs"><%= batch.processed_count %> ok / <%= batch.failed_count %> failed</span>
+            </li>
+          <% end %>
+        </ul>
+      <% else %>
+        <p class="mt-2 text-sm text-slate-500">No batches uploaded.</p>
+      <% end %>
+    </div>
+
+    <div class="mt-6 flex flex-col gap-2 text-sm">
+      <%= link_to "Create template", new_import_template_path, class: "text-emerald-600" %>
+      <%= link_to "Upload CSV", new_import_batch_path, class: "text-emerald-600" %>
     </div>
   </div>
 </div>
@@ -72,7 +95,7 @@
     <tbody>
       <% @recent_transactions.each do |tx| %>
         <tr class="border-t border-slate-100">
-          <td class="py-3"><%= tx.occurred_on.to_s(:long) %></td>
+          <td class="py-3"><%= l(tx.occurred_on, format: :long) %></td>
           <td class="py-3"><%= tx.account.name %></td>
           <td class="py-3"><%= tx.memo.presence || "—" %></td>
           <td class="py-3 text-right font-semibold <%= tx.income? ? "text-emerald-600" : "text-rose-500" %>"><%= number_to_currency(tx.amount_signed) %></td>

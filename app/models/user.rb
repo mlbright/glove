@@ -4,7 +4,6 @@ class User < ApplicationRecord
   has_many :accounts, dependent: :destroy
   has_many :transactions, dependent: :destroy
   has_many :tags, dependent: :destroy
-  has_many :schedules, dependent: :destroy
   has_many :import_templates, dependent: :destroy
   has_many :import_batches, dependent: :destroy
 

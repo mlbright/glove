@@ -1,5 +1,5 @@
 class ImportTemplate < ApplicationRecord
-  SUPPORTED_FIELDS = %w[account_name entry_type amount occurred_on memo notes tag_list status schedule_name].freeze
+  SUPPORTED_FIELDS = %w[account_name entry_type amount occurred_on memo notes tag_list status].freeze
 
   belongs_to :user
 

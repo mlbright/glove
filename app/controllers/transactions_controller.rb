@@ -66,34 +66,25 @@ class TransactionsController < ApplicationController
 
   def load_form_support
     @accounts = current_user.accounts.order(:name)
-    @schedules = current_user.schedules.order(:name)
     @tag_options = current_user.tags.order(:name)
   end
 
   def build_transaction
     attrs = transaction_params
     account = current_user.accounts.find(attrs.delete(:account_id))
-    schedule = schedule_from_params(attrs.delete(:schedule_id))
     attrs.delete(:tag_list)
-    current_user.transactions.build(attrs.merge(account: account, schedule: schedule))
+    current_user.transactions.build(attrs.merge(account: account))
   end
 
   def transaction_attributes_for_update
     attrs = transaction_params
     attrs.delete(:tag_list)
     attrs[:account] = current_user.accounts.find(attrs.delete(:account_id)) if attrs[:account_id]
-    attrs[:schedule] = schedule_from_params(attrs.delete(:schedule_id)) if attrs.key?(:schedule_id)
     attrs
   end
 
-  def schedule_from_params(schedule_id)
-    return nil if schedule_id.blank?
-
-    current_user.schedules.find(schedule_id)
-  end
-
   def transaction_params
-    params.require(:transaction).permit(:account_id, :schedule_id, :entry_type, :amount, :occurred_on, :memo, :notes, :status, :tag_list)
+    params.require(:transaction).permit(:account_id, :entry_type, :amount, :occurred_on, :memo, :notes, :status, :tag_list)
   end
 
   def apply_tags(transaction)

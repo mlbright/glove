@@ -2,7 +2,6 @@ class Account < ApplicationRecord
   belongs_to :user
 
   has_many :transactions, dependent: :destroy
-  has_many :schedules, dependent: :nullify
 
   enum :account_type, { checking: 0, savings: 1, credit_card: 2, cash: 3, investment: 4 }, default: :checking
 

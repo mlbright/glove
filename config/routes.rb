@@ -19,7 +19,6 @@ Rails.application.routes.draw do
         get :tag_cloud
       end
     end
-    resources :schedules
     resources :tags, only: %i[index]
     resources :import_templates
     resources :import_batches do

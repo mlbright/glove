@@ -58,8 +58,8 @@ class ImportTemplatesController < ApplicationController
     attrs[:column_examples] = attrs[:column_examples].to_s.lines.map(&:strip).reject(&:blank?)
     mapping = Array(attrs.delete("mapping_rows"))
     attrs[:mapping] = mapping.each_with_object({}) do |row, hash|
-      column = row["column"].to_s.strip
-      attribute = row["attribute"].to_s.strip
+      column = (row[:column] || row["column"]).to_s.strip
+      attribute = (row[:attribute] || row["attribute"]).to_s.strip
       next if column.blank? || attribute.blank?
 
       hash[column] = attribute

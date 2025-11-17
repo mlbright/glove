@@ -17,7 +17,7 @@ class ImportBatchesController < ApplicationController
 
     if @import_batch.save
       @import_batch.update(source_filename: @import_batch.csv_file.filename.to_s)
-      redirect_to start_import_batch_path(@import_batch)
+      redirect_to @import_batch, notice: "Batch uploaded. Start the import when you're ready."
     else
       load_templates
       render :new, status: :unprocessable_entity

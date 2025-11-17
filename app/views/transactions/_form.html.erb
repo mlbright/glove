@@ -17,15 +17,9 @@
       <%= form.number_field :amount, step: 0.01, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
     </div>
   </div>
-  <div class="grid gap-4 md:grid-cols-2">
-    <div>
-      <%= form.label :occurred_on, class: "block text-sm font-medium" %>
-      <%= form.date_field :occurred_on, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
-    </div>
-    <div>
-      <%= form.label :schedule_id, "Schedule", class: "block text-sm font-medium" %>
-      <%= form.select :schedule_id, [["None", nil]] + @schedules.map { |schedule| [schedule.name, schedule.id] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
-    </div>
+  <div>
+    <%= form.label :occurred_on, class: "block text-sm font-medium" %>
+    <%= form.date_field :occurred_on, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
   </div>
   <div>
     <%= form.label :memo, class: "block text-sm font-medium" %>
