@@ -10,6 +10,10 @@ module Users
       handle_auth "GitHub"
     end
 
+    def failure
+      redirect_to root_path, alert: "Authentication failed: #{failure_message}"
+    end
+
     private
 
     def handle_auth(kind)
@@ -24,6 +28,16 @@ module Users
     rescue StandardError => e
       Rails.logger.error("OmniAuth failure: #{e.message}")
       redirect_to root_path, alert: "Authentication failed."
+    end
+
+    def failure_message
+      exception = request.env["omniauth.error"]
+      error_type = request.env["omniauth.error.type"]
+      exception&.error_reason || error_type || "Unknown error"
+    end
+
+    def after_omniauth_failure_path_for(_scope)
+      root_path
     end
   end
 end
