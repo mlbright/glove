@@ -26,7 +26,7 @@
   <body class="min-h-screen bg-slate-50">
     <header class="bg-white shadow">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <%= link_to "Fearless Finance", user_signed_in? ? dashboard_path : root_path, class: "text-xl font-semibold text-slate-900" %>
+        <%= link_to "FF", user_signed_in? ? dashboard_path : root_path, class: "text-xl font-semibold text-slate-900" %>
         <% if user_signed_in? %>
           <div class="flex items-center gap-4 text-sm text-slate-600">
             <span><%= current_user.display_name %></span>
