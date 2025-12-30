@@ -1,0 +1,47 @@
+<div class="flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900">Tags</h1>
+    <p class="mt-2 text-sm text-slate-600">Manage your tags or click a tag to filter transactions.</p>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold text-slate-900">Tag Cloud</h2>
+  <div class="mt-4 flex flex-wrap gap-3">
+    <% @tag_totals.each do |(tag_id, tag_name), count| %>
+      <%= link_to "#{tag_name} (#{count})", transactions_path(tag_id: tag_id), class: "rounded bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200" %>
+    <% end %>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold text-slate-900">Manage Tags</h2>
+  <% if @tags.any? %>
+    <table class="mt-4 w-full text-left text-sm">
+      <thead>
+        <tr class="text-slate-500">
+          <th class="py-2">Name</th>
+          <th class="py-2">Slug</th>
+          <th class="py-2 text-right">Transactions</th>
+          <th class="py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @tags.each do |tag| %>
+          <% count = @tag_totals.find { |(id, _), _| id == tag.id }&.last || 0 %>
+          <tr class="border-t border-slate-100">
+            <td class="py-3 font-medium text-slate-800"><%= tag.name %></td>
+            <td class="py-3 text-slate-500"><%= tag.slug %></td>
+            <td class="py-3 text-right text-slate-600"><%= count %></td>
+            <td class="py-3 text-right">
+              <%= link_to "Edit", edit_tag_path(tag), class: "text-emerald-600 hover:text-emerald-700" %>
+              <%= button_to "Delete", tag_path(tag), method: :delete, class: "ml-3 text-rose-500 hover:text-rose-600", form: { data: { turbo_confirm: "Are you sure? This will remove the tag from all #{count} transaction(s)." } } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">No tags yet. Tags are created when you add them to transactions.</p>
+  <% end %>
+</div>

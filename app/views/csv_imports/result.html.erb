@@ -1,0 +1,74 @@
+<h1 class="text-2xl font-bold text-slate-900">Import Results</h1>
+<p class="mt-2 text-sm text-slate-600">
+  Import completed for <strong><%= @account.name %></strong>.
+</p>
+
+<div class="mt-8 max-w-2xl">
+  <dl class="grid grid-cols-3 gap-4 text-sm">
+    <div class="rounded-md bg-emerald-50 p-3">
+      <dt class="text-emerald-700">Imported</dt>
+      <dd class="text-2xl font-bold text-emerald-900"><%= @result.imported_count %></dd>
+    </div>
+    <div class="rounded-md bg-amber-50 p-3">
+      <dt class="text-amber-700">Skipped (duplicates)</dt>
+      <dd class="text-2xl font-bold text-amber-900"><%= @result.skipped_count %></dd>
+    </div>
+    <div class="rounded-md bg-red-50 p-3">
+      <dt class="text-red-700">Errors</dt>
+      <dd class="text-2xl font-bold text-red-900"><%= @result.error_count %></dd>
+    </div>
+  </dl>
+
+  <% if @result.skipped_duplicates.any? %>
+    <div class="mt-6">
+      <h2 class="text-lg font-semibold text-amber-800">Duplicate Transactions Skipped</h2>
+      <p class="mt-1 text-sm text-slate-600">These transactions already exist in the account and were not imported.</p>
+      <div class="mt-3 overflow-x-auto rounded-md border border-amber-200">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="bg-amber-50 text-left text-amber-800">
+              <th class="px-3 py-2 font-medium">Date</th>
+              <th class="px-3 py-2 font-medium">Description</th>
+              <th class="px-3 py-2 font-medium text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-amber-100 bg-white">
+            <% @result.skipped_duplicates.first(50).each do |dup| %>
+              <tr class="text-slate-700">
+                <td class="px-3 py-2 whitespace-nowrap"><%= dup.occurred_on.strftime("%Y-%m-%d") %></td>
+                <td class="px-3 py-2"><%= dup.description %></td>
+                <td class="px-3 py-2 text-right whitespace-nowrap">
+                  <span class="<%= dup.entry_type == :expense ? 'text-red-600' : 'text-emerald-600' %>">
+                    <%= dup.entry_type == :expense ? '-' : '+' %><%= number_to_currency(dup.amount_cents / 100.0) %>
+                  </span>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+        <% if @result.skipped_duplicates.count > 50 %>
+          <p class="bg-amber-50 px-3 py-2 text-sm text-slate-500">... and <%= @result.skipped_duplicates.count - 50 %> more duplicates</p>
+        <% end %>
+      </div>
+    </div>
+  <% end %>
+
+  <% if @result.errors.any? %>
+    <div class="mt-6">
+      <h2 class="text-lg font-semibold text-red-800">Errors</h2>
+      <ul class="mt-2 list-disc list-inside space-y-1 text-sm text-red-600">
+        <% @result.errors.first(20).each do |error| %>
+          <li><%= error %></li>
+        <% end %>
+        <% if @result.errors.count > 20 %>
+          <li class="text-slate-500">... and <%= @result.errors.count - 20 %> more errors</li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mt-8 flex gap-4">
+    <%= link_to "View Transactions", transactions_path, class: "inline-flex justify-center rounded-md border border-transparent bg-emerald-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2" %>
+    <%= link_to "Import More", new_csv_import_path, class: "inline-flex justify-center rounded-md border border-slate-300 bg-white py-2 px-4 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2" %>
+  </div>
+</div>

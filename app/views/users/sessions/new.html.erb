@@ -1,0 +1,11 @@
+<div class="mx-auto max-w-2xl py-16 text-center">
+  <h1 class="text-3xl font-semibold text-slate-900">Welcome back</h1>
+  <p class="mt-4 text-slate-600">Sign in to continue.</p>
+  <div class="mt-8 flex flex-col items-center gap-4">
+    <%= button_to "Continue with Google",
+                  user_google_oauth2_omniauth_authorize_path,
+                  method: :post,
+                  data: { turbo: false },
+                  class: "w-full rounded bg-emerald-600 px-6 py-3 text-white font-medium" %>
+  </div>
+</div>

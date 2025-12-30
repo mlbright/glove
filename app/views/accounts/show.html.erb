@@ -1,0 +1,38 @@
+<div class="flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-semibold text-slate-900"><%= @account.name %></h1>
+  </div>
+  <div class="flex gap-3">
+    <%= link_to "Edit", edit_account_path(@account), class: "rounded border border-slate-300 px-4 py-2" %>
+    <%= button_to "Archive", @account, method: :delete, data: { turbo_confirm: "Archive this account?" }, class: "rounded bg-rose-500 px-4 py-2 text-white" %>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Recent Transactions</h2>
+  <% transactions = @account.transactions.order(occurred_on: :desc).limit(20) %>
+  <% if transactions.any? %>
+    <table class="mt-4 w-full text-sm">
+      <thead>
+        <tr class="text-slate-500">
+          <th class="py-2">Date</th>
+          <th class="py-2">Type</th>
+          <th class="py-2">Description</th>
+          <th class="py-2 text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% transactions.each do |tx| %>
+          <tr class="border-t border-slate-100">
+            <td class="py-3"><%= l(tx.occurred_on, format: :long) %></td>
+            <td class="py-3"><%= tx.entry_type.humanize %></td>
+            <td class="py-3"><%= tx.description.presence || "—" %></td>
+            <td class="py-3 text-right font-semibold <%= tx.income? ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(tx.amount_signed) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">No transactions yet.</p>
+  <% end %>
+</div>

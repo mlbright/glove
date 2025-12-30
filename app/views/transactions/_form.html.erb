@@ -1,0 +1,39 @@
+<%= form_with model: @transaction, class: "space-y-4" do |form| %>
+  <div>
+    <%= form.label :account_id, "Account", class: "block text-sm font-medium" %>
+    <%= form.select :account_id, @accounts.map { |account| [account.name, account.id] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div class="grid gap-4 md:grid-cols-3">
+    <div>
+      <%= form.label :entry_type, class: "block text-sm font-medium" %>
+      <%= form.select :entry_type, Transaction.entry_types.keys.map { |type| [type.humanize, type] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div>
+      <%= form.label :status, class: "block text-sm font-medium" %>
+      <%= form.select :status, Transaction.statuses.keys.map { |status| [status.humanize, status] }, {}, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    </div>
+    <div>
+      <%= form.label :amount, class: "block text-sm font-medium" %>
+      <%= form.number_field :amount, step: 0.01, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    </div>
+  </div>
+  <div>
+    <%= form.label :occurred_on, "Date & Time", class: "block text-sm font-medium" %>
+    <%= form.datetime_local_field :occurred_on, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.label :description, class: "block text-sm font-medium" %>
+    <%= form.text_field :description, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.label :notes, class: "block text-sm font-medium" %>
+    <%= form.text_area :notes, rows: 4, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.label :tag_list, "Tags (comma separated)", class: "block text-sm font-medium" %>
+    <%= text_field_tag :"transaction[tag_list]", @transaction.tags.map(&:name).join(', '), class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+  </div>
+  <div>
+    <%= form.submit class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+  </div>
+<% end %>

@@ -1,0 +1,14 @@
+<div class="mx-auto max-w-3xl py-16 text-center">
+  <h1 class="text-4xl font-semibold text-slate-900">Glove</h1>
+  <p class="mt-4 text-lg text-slate-600">
+    Track income, expenses, and recurring cash flow securely with Google sign-in.
+  </p>
+  <div class="mt-8 flex justify-center gap-4">
+    <%= button_to "Sign in with Google",
+                  user_google_oauth2_omniauth_authorize_path,
+                  method: :post,
+                  data: { turbo: false },
+                  class: "rounded bg-emerald-600 px-6 py-3 text-white font-medium",
+                  form: { class: "inline-block" } %>
+  </div>
+</div>
