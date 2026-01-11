@@ -32,7 +32,14 @@ host = ENV.fetch("HOST", "0.0.0.0")
 port_number = ENV.fetch("PORT", 3000)
 
 # Listen on all interfaces by default so other machines on the network can connect.
-bind "tcp://#{host}:#{port_number}"
+# For SSL, set SSL_CERT_PATH and SSL_KEY_PATH environment variables.
+if ENV["SSL_CERT_PATH"] && ENV["SSL_KEY_PATH"]
+  ssl_bind host, port_number,
+    cert: ENV["SSL_CERT_PATH"],
+    key: ENV["SSL_KEY_PATH"]
+else
+  bind "tcp://#{host}:#{port_number}"
+end
 
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
