@@ -38,11 +38,14 @@ class CsvImportsController < ApplicationController
     @result = importer.import(file_content)
     @account = account
 
-    if @result.error_count.zero? && @result.skipped_duplicates.empty?
+    if @result.error_count.zero? && @result.skipped_duplicates.empty? && @result.warnings.empty?
       flash[:notice] = "Successfully imported #{@result.imported_count} transactions."
       redirect_to transactions_path
     elsif @result.error_count.zero?
-      flash.now[:notice] = "Successfully imported #{@result.imported_count} transactions. #{@result.skipped_count} duplicates skipped."
+      notice_parts = [ "Successfully imported #{@result.imported_count} transactions." ]
+      notice_parts << "#{@result.skipped_count} duplicates skipped." if @result.skipped_count > 0
+      notice_parts << "#{@result.warnings.count} warning(s)." if @result.warnings.any?
+      flash.now[:notice] = notice_parts.join(" ")
       render :result
     else
       flash.now[:alert] = "Import completed with errors."

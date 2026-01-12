@@ -13,7 +13,7 @@
   </div>
 </div>
 
-<div class="mt-10 grid gap-6 md:grid-cols-2">
+<div class="mt-10">
   <div class="rounded bg-white p-6 shadow">
     <h2 class="text-lg font-semibold text-slate-900">Accounts</h2>
     <ul class="mt-4 space-y-3">
@@ -26,24 +26,6 @@
     </ul>
     <div class="mt-4 text-right">
       <%= link_to "Manage accounts", accounts_path, class: "text-sm text-emerald-600" %>
-    </div>
-  </div>
-
-  <div class="rounded bg-white p-6 shadow">
-    <h2 class="text-lg font-semibold text-slate-900">Import CSV</h2>
-    <p class="mt-1 text-sm text-slate-500">Upload CSV files from your bank to import transactions in bulk.</p>
-
-    <div class="mt-4">
-      <p class="text-xs uppercase text-slate-500">Supported Formats</p>
-      <ul class="mt-2 space-y-1 text-sm text-slate-700">
-        <li>TD Chequing Account</li>
-        <li>TD Visa Credit Card</li>
-        <li>PC Financial Mastercard</li>
-      </ul>
-    </div>
-
-    <div class="mt-6 flex flex-col gap-2 text-sm">
-      <%= link_to "Import CSV", new_csv_import_path, class: "text-emerald-600" %>
     </div>
   </div>
 </div>

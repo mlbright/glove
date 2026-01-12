@@ -1,7 +1,7 @@
 <h1 class="text-2xl font-bold text-slate-900">Import CSV</h1>
 <p class="mt-2 text-sm text-slate-600">Upload a CSV file from your bank to import transactions.</p>
 
-<%= form_with url: csv_imports_path, method: :post, multipart: true, class: "mt-8 max-w-lg space-y-6" do |f| %>
+<%= form_with url: csv_imports_path, method: :post, multipart: true, data: { turbo: false }, class: "mt-8 max-w-lg space-y-6" do |f| %>
   <div>
     <label for="account_id" class="block text-sm font-medium text-slate-700">Account</label>
     <select name="account_id" id="account_id" required class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm">
