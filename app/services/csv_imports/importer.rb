@@ -112,6 +112,10 @@ module CsvImports
         return
       end
 
+      # Find the most recent existing transaction date
+      most_recent_transaction = @account.transactions.order(occurred_on: :desc).first
+      most_recent_date = most_recent_transaction&.occurred_on
+
       # Find the oldest non-duplicate transaction in the import set
       oldest_new_row = find_oldest_non_duplicate(sorted_rows)
 
@@ -133,14 +137,14 @@ module CsvImports
       expected_balance_before = calculate_balance_before_row(oldest_new_row)
       actual_balance_before = calculate_actual_balance_before(oldest_new_row)
 
-      # Check for balance mismatch and create adjustment if needed
+      # Check for balance mismatch and warn if needed
       if expected_balance_before != actual_balance_before
         add_balance_warning(expected_balance_before, actual_balance_before, oldest_new_row.occurred_at)
-        create_balance_adjustment(expected_balance_before, actual_balance_before, oldest_new_row.occurred_at)
       end
 
       # Import all non-duplicate transactions and update balance_cents
-      import_with_balance_tracking(sorted_rows)
+      # Mark transactions older than most recent existing as excluded from balance
+      import_with_balance_tracking(sorted_rows, most_recent_date)
 
       # Replay existing transactions newer than oldest import to update their balance_cents
       replay_newer_transactions(oldest_new_row, sorted_rows)
@@ -242,41 +246,11 @@ module CsvImports
         message: "Balance mismatch detected: imported file shows balance should be #{Money.new(expected, :cad).format} " \
                  "but account balance is #{Money.new(actual, :cad).format} " \
                  "(#{Money.new(difference.abs, :cad).format} #{direction}). " \
-                 "A Balance Adjustment transaction has been created."
+                 "You may need to manually reconcile this difference."
       )
     end
 
-    def create_balance_adjustment(expected, actual, occurred_on)
-      difference = expected - actual
-
-      # Determine entry type based on format and difference direction
-      entry_type = if @format == :td_visa
-        # TD Visa: positive difference means we need more debt (expense), negative means less debt (income)
-        difference > 0 ? :expense : :income
-      else
-        # Chequing: positive difference means we need more funds (income), negative means less (expense)
-        difference > 0 ? :income : :expense
-      end
-
-      transaction = @account.transactions.build(
-        occurred_on: occurred_on,
-        amount_cents: difference.abs,
-        entry_type: entry_type,
-        description: "Balance Adjustment",
-        status: :cleared,
-        balance_cents: nil # Will be set during replay
-      )
-      transaction.acted_by = @user
-
-      if transaction.save
-        @imported_count += 1
-      else
-        @error_count += 1
-        @errors << "Failed to create balance adjustment: #{transaction.errors.full_messages.join(', ')}"
-      end
-    end
-
-    def import_with_balance_tracking(sorted_rows)
+    def import_with_balance_tracking(sorted_rows, most_recent_date = nil)
       sorted_rows.each do |row|
         if duplicate_exists?(row)
           @skipped_count += 1
@@ -287,20 +261,23 @@ module CsvImports
             entry_type: row.entry_type
           )
         else
-          result = import_row_with_balance(row)
+          # Mark as excluded from balance if older than most recent existing transaction
+          excludes_from_balance = most_recent_date && row.occurred_at < most_recent_date
+          result = import_row_with_balance(row, excludes_from_balance: excludes_from_balance)
           handle_import_row_result(result)
         end
       end
     end
 
-    def import_row_with_balance(row)
+    def import_row_with_balance(row, excludes_from_balance: false)
       transaction = @account.transactions.build(
         occurred_on: row.occurred_at,
         amount_cents: row.amount_cents,
         entry_type: row.entry_type,
         description: row.description,
         status: :cleared,
-        balance_cents: row.respond_to?(:balance_cents) ? row.balance_cents : nil
+        balance_cents: row.respond_to?(:balance_cents) ? row.balance_cents : nil,
+        excludes_from_balance: excludes_from_balance
       )
       transaction.acted_by = @user
 
