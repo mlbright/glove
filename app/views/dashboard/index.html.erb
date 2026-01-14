@@ -1,36 +1,23 @@
-<div class="grid gap-6 md:grid-cols-3">
-  <div class="rounded bg-white p-6 shadow">
-    <p class="text-sm uppercase text-slate-500">Total Income</p>
-    <p class="mt-2 text-3xl font-semibold text-emerald-600"><%= humanized_money_with_symbol(@total_income) %></p>
+<div class="rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold text-slate-900">Accounts</h2>
+  <ul class="mt-4 space-y-3">
+    <% @accounts.each do |account| %>
+      <li class="flex items-center justify-between">
+        <p class="font-medium text-slate-800"><%= account.name %></p>
+        <p class="text-base font-semibold <%= account.balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(account.balance) %></p>
+      </li>
+    <% end %>
+  </ul>
+  <div class="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+    <p class="font-semibold text-slate-900">Net Balance</p>
+    <p class="text-lg font-semibold <%= @net_balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(@net_balance) %></p>
   </div>
-  <div class="rounded bg-white p-6 shadow">
-    <p class="text-sm uppercase text-slate-500">Total Expenses</p>
-    <p class="mt-2 text-3xl font-semibold text-rose-500"><%= humanized_money_with_symbol(@total_expenses) %></p>
-  </div>
-  <div class="rounded bg-white p-6 shadow">
-    <p class="text-sm uppercase text-slate-500">Net Balance</p>
-    <p class="mt-2 text-3xl font-semibold <%= @net_total >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(@net_total) %></p>
-  </div>
-</div>
-
-<div class="mt-10">
-  <div class="rounded bg-white p-6 shadow">
-    <h2 class="text-lg font-semibold text-slate-900">Accounts</h2>
-    <ul class="mt-4 space-y-3">
-      <% @accounts.each do |account| %>
-        <li class="flex items-center justify-between">
-          <p class="font-medium text-slate-800"><%= account.name %></p>
-          <p class="text-base font-semibold <%= account.balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(account.balance) %></p>
-        </li>
-      <% end %>
-    </ul>
-    <div class="mt-4 text-right">
-      <%= link_to "Manage accounts", accounts_path, class: "text-sm text-emerald-600" %>
-    </div>
+  <div class="mt-4 text-right">
+    <%= link_to "Manage accounts", accounts_path, class: "text-sm text-emerald-600" %>
   </div>
 </div>
 
-<div class="mt-10 rounded bg-white p-6 shadow">
+<div class="mt-6 rounded bg-white p-6 shadow">
   <div class="flex items-center justify-between">
     <h2 class="text-lg font-semibold text-slate-900">Recent transactions</h2>
     <%= link_to "View all", transactions_path, class: "text-sm text-emerald-600" %>

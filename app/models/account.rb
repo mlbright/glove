@@ -11,7 +11,7 @@ class Account < ApplicationRecord
       "CASE WHEN entry_type = ? THEN amount_cents ELSE -amount_cents END",
       income_value
     ])
-    cents = transactions.sum(Arel.sql(sql))
+    cents = transactions.where(excludes_from_balance: false).sum(Arel.sql(sql))
     Money.new(cents, :cad)
   end
 end

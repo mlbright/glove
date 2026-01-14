@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_01_12_020916) do
+ActiveRecord::Schema[8.1].define(version: 2026_01_14_030752) do
   create_table "accounts", force: :cascade do |t|
+    t.integer "account_type", default: 0, null: false
     t.datetime "archived_at"
     t.string "color"
     t.datetime "created_at", null: false
@@ -91,6 +92,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_01_12_020916) do
     t.datetime "created_at", null: false
     t.text "description"
     t.integer "entry_type", default: 0, null: false
+    t.boolean "excludes_from_balance", default: false, null: false
     t.text "notes"
     t.datetime "occurred_on", null: false
     t.integer "status", default: 0, null: false

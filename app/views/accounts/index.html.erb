@@ -13,8 +13,13 @@
   </thead>
   <tbody>
     <% @accounts.each do |account| %>
-      <tr class="border-t border-slate-100">
-        <td class="py-3 font-medium text-slate-800"><%= account.name %></td>
+      <tr class="border-t border-slate-100 <%= 'opacity-50' if account.archived_at? %>">
+        <td class="py-3 font-medium text-slate-800">
+          <%= account.name %>
+          <% if account.archived_at? %>
+            <span class="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-600">Archived</span>
+          <% end %>
+        </td>
         <td class="py-3 text-right font-semibold <%= account.balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(account.balance) %></td>
         <td class="py-3 text-right">
           <%= link_to "View", account_path(account), class: "text-emerald-600" %>

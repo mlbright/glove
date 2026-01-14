@@ -42,7 +42,7 @@ RSpec.describe CsvImports::Importer do
       expect(transactions.third.entry_type).to eq "expense"
     end
 
-    it "skips duplicate transactions and reconciles balance" do
+    it "skips duplicate transactions and warns about balance mismatch" do
       # Create an existing transaction (without balance_cents like a legacy entry)
       create(:transaction,
         account: account,
@@ -61,12 +61,12 @@ RSpec.describe CsvImports::Importer do
       result = importer.import(csv_content)
 
       # First row is duplicate (skipped), second row is imported
-      # Plus a Balance Adjustment to reconcile account balance ($1000) with CSV expected ($500 opening)
       expect(result.skipped_count).to eq 1
-      expect(result.imported_count).to eq 2 # Second row + Balance Adjustment
+      expect(result.imported_count).to eq 1 # Second row only
       expect(result.warnings.count).to eq 1 # Balance mismatch warning
-      expect(account.transactions.count).to eq 3 # Original + imported + adjustment
-      expect(account.transactions.find_by(description: "Balance Adjustment")).to be_present
+      expect(result.warnings.first.message).to include("You may need to manually reconcile")
+      expect(account.transactions.count).to eq 2 # Original + imported
+      expect(account.transactions.find_by(description: "Balance Adjustment")).to be_nil
     end
 
     it "skips duplicates when re-importing the same CSV" do
@@ -228,7 +228,7 @@ RSpec.describe CsvImports::Importer do
         expect(transactions.second.balance_cents).to eq 70_000
       end
 
-      it "detects balance mismatch and creates Balance Adjustment transaction" do
+      it "detects balance mismatch and warns without creating adjustment" do
         # Create an existing transaction that throws off the balance
         create(:transaction,
           account: account,
@@ -247,10 +247,64 @@ RSpec.describe CsvImports::Importer do
 
         expect(result.warnings.count).to eq 1
         expect(result.warnings.first.message).to include("Balance mismatch detected")
+        expect(result.warnings.first.message).to include("You may need to manually reconcile")
 
-        # Should have created a Balance Adjustment transaction
+        # Should NOT have created a Balance Adjustment transaction
         adjustment = account.transactions.find_by(description: "Balance Adjustment")
-        expect(adjustment).to be_present
+        expect(adjustment).to be_nil
+      end
+
+      it "marks older imported transactions as excluded from balance" do
+        # Create an existing recent transaction
+        create(:transaction,
+          account: account,
+          occurred_on: Time.new(2025, 11, 20),
+          description: "Recent transaction",
+          amount: 500.00,
+          entry_type: :income
+        )
+
+        # Import an older transaction
+        csv_content = <<~CSV
+          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        CSV
+
+        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        result = importer.import(csv_content)
+
+        expect(result.imported_count).to eq 1
+
+        # The imported transaction should be marked as excluded from balance
+        imported = account.transactions.find_by(description: "ACME Corp  PAY")
+        expect(imported.excludes_from_balance).to be true
+
+        # Account balance should only include the recent transaction
+        expect(account.balance).to eq Money.new(50_000, :cad)
+      end
+
+      it "does not mark newer imported transactions as excluded from balance" do
+        # Create an existing older transaction
+        create(:transaction,
+          account: account,
+          occurred_on: Time.new(2025, 11, 10),
+          description: "Old transaction",
+          amount: 200.00,
+          entry_type: :income
+        )
+
+        # Import a newer transaction
+        csv_content = <<~CSV
+          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        CSV
+
+        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        result = importer.import(csv_content)
+
+        expect(result.imported_count).to eq 1
+
+        # The imported transaction should NOT be marked as excluded from balance
+        imported = account.transactions.find_by(description: "ACME Corp  PAY")
+        expect(imported.excludes_from_balance).to be false
       end
 
       it "uses balance_cents for enhanced duplicate detection" do
@@ -351,7 +405,7 @@ RSpec.describe CsvImports::Importer do
         expect(transactions.second.balance_cents).to eq 210_988 # Later transaction
       end
 
-      it "detects balance mismatch and creates adjustment for credit card" do
+      it "detects balance mismatch and warns without creating adjustment for credit card" do
         create(:transaction,
           account: account,
           occurred_on: Time.new(2025, 11, 20),
@@ -369,7 +423,7 @@ RSpec.describe CsvImports::Importer do
 
         expect(result.warnings.count).to eq 1
         adjustment = account.transactions.find_by(description: "Balance Adjustment")
-        expect(adjustment).to be_present
+        expect(adjustment).to be_nil
       end
     end
 
