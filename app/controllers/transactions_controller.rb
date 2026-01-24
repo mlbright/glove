@@ -7,6 +7,7 @@ class TransactionsController < ApplicationController
     @transactions = Transaction.includes(:account, :tags).order(occurred_on: :desc)
     @transactions = @transactions.where(account_id: params[:account_id]) if params[:account_id].present?
     @transactions = @transactions.joins(:tags).where(tags: { id: params[:tag_id] }) if params[:tag_id].present?
+    @transactions = @transactions.where(entry_type: params[:entry_type]) if params[:entry_type].present?
   end
 
   def show; end

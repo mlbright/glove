@@ -13,6 +13,10 @@
       <%= form.label :tag_id, "Tag", class: "block text-sm" %>
       <%= form.select :tag_id, options_for_select([["All", nil]] + @tags.map { |t| [t.name, t.id] }, params[:tag_id]), {}, class: "rounded border border-slate-300 px-3 py-2" %>
     </div>
+    <div>
+      <%= form.label :entry_type, "Type", class: "block text-sm" %>
+      <%= form.select :entry_type, options_for_select([["All", nil], ["Income", "income"], ["Expense", "expense"]], params[:entry_type]), {}, class: "rounded border border-slate-300 px-3 py-2" %>
+    </div>
     <div class="self-end">
       <%= form.submit "Filter", class: "rounded bg-slate-800 px-4 py-2 text-white" %>
     </div>
