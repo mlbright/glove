@@ -25,7 +25,7 @@ gem "omniauth-rails_csrf_protection"
 gem "omniauth-google-oauth2"
 gem "omniauth-github"
 gem "oauth2"
-gem "devise", "~> 4.9"
+gem "devise", "~> 5.0"
 gem "pundit"
 gem "groupdate"
 
