@@ -254,7 +254,7 @@ RSpec.describe CsvImports::Importer do
         expect(adjustment).to be_nil
       end
 
-      it "marks older imported transactions as excluded from balance" do
+      it "includes older imported transactions in balance (relies on duplicate detection for overlap)" do
         # Create an existing recent transaction
         create(:transaction,
           account: account,
@@ -264,7 +264,10 @@ RSpec.describe CsvImports::Importer do
           entry_type: :income
         )
 
-        # Import an older transaction
+        # Import an older transaction - this is a legitimate transaction that
+        # the bank reported later (e.g., delayed posting). It should be included
+        # in the balance. Duplicate detection will prevent double-counting if
+        # the same transaction is imported again.
         csv_content = <<~CSV
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
@@ -274,12 +277,12 @@ RSpec.describe CsvImports::Importer do
 
         expect(result.imported_count).to eq 1
 
-        # The imported transaction should be marked as excluded from balance
+        # The imported transaction should NOT be marked as excluded from balance
         imported = account.transactions.find_by(description: "ACME Corp  PAY")
-        expect(imported.excludes_from_balance).to be true
+        expect(imported.excludes_from_balance).to be false
 
-        # Account balance should only include the recent transaction
-        expect(account.balance).to eq Money.new(50_000, :cad)
+        # Account balance should include both transactions (500 + 1000)
+        expect(account.balance).to eq Money.new(150_000, :cad)
       end
 
       it "does not mark newer imported transactions as excluded from balance" do
