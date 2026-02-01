@@ -143,8 +143,7 @@ module CsvImports
       end
 
       # Import all non-duplicate transactions and update balance_cents
-      # Mark transactions older than most recent existing as excluded from balance
-      import_with_balance_tracking(sorted_rows, most_recent_date)
+      import_with_balance_tracking(sorted_rows)
 
       # Replay existing transactions newer than oldest import to update their balance_cents
       replay_newer_transactions(oldest_new_row, sorted_rows)
@@ -250,7 +249,7 @@ module CsvImports
       )
     end
 
-    def import_with_balance_tracking(sorted_rows, most_recent_date = nil)
+    def import_with_balance_tracking(sorted_rows)
       sorted_rows.each do |row|
         if duplicate_exists?(row)
           @skipped_count += 1
@@ -261,9 +260,10 @@ module CsvImports
             entry_type: row.entry_type
           )
         else
-          # Mark as excluded from balance if older than most recent existing transaction
-          excludes_from_balance = most_recent_date && row.occurred_at < most_recent_date
-          result = import_row_with_balance(row, excludes_from_balance: excludes_from_balance)
+          # All non-duplicate transactions should be included in balance calculation.
+          # Duplicate detection handles overlapping imports, so we don't need to
+          # exclude older transactions from balance.
+          result = import_row_with_balance(row)
           handle_import_row_result(result)
         end
       end
