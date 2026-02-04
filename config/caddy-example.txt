@@ -1,0 +1,34 @@
+# Example Caddy configuration for multiple Rails apps at subpaths
+# Place this in /etc/caddy/Caddyfile or adapt to your existing config
+#
+# Using handle_path: Caddy strips the prefix before forwarding
+# Rails receives: /dashboard when user visits /glove/dashboard
+# Requires: SCRIPT_NAME=/glove environment variable when starting Rails
+#
+# This is the standard Rack approach for subpath deployment.
+
+hippo.chameleon-gopher.ts.net {
+    # Glove app at /glove
+    handle_path /glove/* {
+        reverse_proxy localhost:3002 {
+            header_up X-Forwarded-Proto https
+        }
+    }
+    
+    # Handle /glove without trailing slash - redirect to /glove/
+    handle /glove {
+        redir /glove/ permanent
+    }
+
+    # Another Rails app at /other-app (example)
+    # handle_path /other-app/* {
+    #     reverse_proxy localhost:3003 {
+    #         header_up X-Forwarded-Proto https
+    #     }
+    # }
+    
+    # Root app or default handler
+    # handle {
+    #     reverse_proxy localhost:3004
+    # }
+}
