@@ -36,6 +36,14 @@ module Fearless
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
+    # Support running behind a reverse proxy at a subpath (e.g., /glove)
+    # Set RAILS_RELATIVE_URL_ROOT=/glove when starting Rails
+    config.relative_url_root = ENV.fetch("RAILS_RELATIVE_URL_ROOT", "/")
+
+    # Middleware to read X-Script-Name header from reverse proxy and set SCRIPT_NAME
+    require_relative "../lib/rack/script_name_from_header"
+    config.middleware.insert_before 0, Rack::ScriptNameFromHeader
+
     # Don't generate system test files.
     config.generators.system_tests = nil
   end

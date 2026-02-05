@@ -3,18 +3,30 @@
 #
 # Using handle_path: Caddy strips the prefix before forwarding
 # Rails receives: /dashboard when user visits /glove/dashboard
-# Requires: SCRIPT_NAME=/glove environment variable when starting Rails
+#
+# Rails configuration required:
+#   1. Set RAILS_RELATIVE_URL_ROOT=/glove when starting Rails:
+#      RAILS_RELATIVE_URL_ROOT=/glove bin/rails server -p 3002
+#   2. config.relative_url_root is configured in config/application.rb
+#   3. Middleware reads X-Script-Name header (lib/rack/script_name_from_header.rb)
 #
 # This is the standard Rack approach for subpath deployment.
 
 hippo.chameleon-gopher.ts.net {
+    tls /etc/caddy/tls/hippo.chameleon-gopher.ts.net.crt /etc/caddy/tls/hippo.chameleon-gopher.ts.net.key
+
     # Glove app at /glove
     handle_path /glove/* {
-        reverse_proxy localhost:3002 {
-            header_up X-Forwarded-Proto https
+        reverse_proxy http://localhost:3002 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            header_up X-Script-Name /glove
         }
     }
-    
+
     # Handle /glove without trailing slash - redirect to /glove/
     handle /glove {
         redir /glove/ permanent
@@ -22,13 +34,22 @@ hippo.chameleon-gopher.ts.net {
 
     # Another Rails app at /other-app (example)
     # handle_path /other-app/* {
-    #     reverse_proxy localhost:3003 {
-    #         header_up X-Forwarded-Proto https
+    #     reverse_proxy http://localhost:3003 {
+    #         header_up Host {host}
+    #         header_up X-Real-IP {remote_host}
+    #         header_up X-Forwarded-For {remote_host}
+    #         header_up X-Forwarded-Proto {scheme}
+    #         header_up X-Forwarded-Host {host}
+    #         header_up SCRIPT_NAME /other-app
     #     }
     # }
-    
+    #
+    # handle /other-app {
+    #     redir /other-app/ permanent
+    # }
+
     # Root app or default handler
     # handle {
-    #     reverse_proxy localhost:3004
+    #     reverse_proxy http://localhost:3004
     # }
 }
