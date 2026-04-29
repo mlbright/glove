@@ -18,7 +18,6 @@ SyslogIdentifier=glove
 Environment=RAILS_ENV=production
 Environment=TARGET_PORT=3002
 Environment=HTTP_PORT=8082
-Environment=RAILS_RELATIVE_URL_ROOT=/glove
 Environment=SOLID_QUEUE_IN_PUMA=true
 Environment=RAILS_LOG_LEVEL=info
 Environment=PIDFILE=/home/mbright/glove/tmp/pids/server.pid
