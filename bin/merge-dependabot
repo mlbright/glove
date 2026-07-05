@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+#
+# merge-dependabot — merge all open dependabot PRs on this repo.
+#
+# For each open dependabot PR: merge it if GitHub reports it mergeable;
+# if it has conflicts (typically Gemfile.lock), comment
+# `@dependabot rebase` and wait for dependabot to push a rebased branch.
+# PRs are merged one at a time because every merge that touches
+# Gemfile.lock can flip the mergeability of the remaining PRs, and
+# GitHub needs a moment to recompute it.
+#
+# Failed merge attempts (e.g. required checks still running after a
+# rebase) are retried on the next round rather than aborting the run.
+#
+# Usage: bin/merge-dependabot [--admin]
+#   --admin   bypass branch protection when merging; needed only if a
+#             required check fails for reasons unrelated to the update
+#
+# Environment:
+#   POLL_SECONDS  seconds between rounds (default 30)
+#   MAX_ROUNDS    give up after this many rounds (default 40)
+
+set -euo pipefail
+
+admin_flag=()
+if [[ "${1:-}" == "--admin" ]]; then
+  admin_flag=(--admin)
+elif [[ -n "${1:-}" ]]; then
+  echo "usage: $0 [--admin]" >&2
+  exit 2
+fi
+
+poll=${POLL_SECONDS:-30}
+max_rounds=${MAX_ROUNDS:-40}
+
+# PR number -> round in which we asked dependabot to rebase it
+declare -A rebase_asked
+
+list_open_prs() {
+  gh pr list --author app/dependabot --state open \
+    --json number,mergeable,title \
+    --jq '.[] | [.number, .mergeable, .title] | @tsv'
+}
+
+for ((round = 1; round <= max_rounds; round++)); do
+  mapfile -t prs < <(list_open_prs)
+
+  if ((${#prs[@]} == 0)); then
+    echo "No open dependabot PRs left — done."
+    exit 0
+  fi
+
+  for line in "${prs[@]}"; do
+    IFS=$'\t' read -r num state title <<<"$line"
+    case $state in
+      MERGEABLE)
+        echo "Merging #$num — $title"
+        if ! gh pr merge "$num" --merge "${admin_flag[@]}"; then
+          echo "Merge of #$num was refused (checks still running, or a" \
+               "failing required check — see: gh pr checks $num); will retry." >&2
+        fi
+        break # re-list: this merge may have conflicted the others
+        ;;
+      CONFLICTING)
+        if [[ -z "${rebase_asked[$num]:-}" ]]; then
+          echo "Asking dependabot to rebase #$num — $title"
+          gh pr comment "$num" --body "@dependabot rebase" >/dev/null
+          rebase_asked[$num]=$round
+        elif ((round - rebase_asked[$num] > 10)); then
+          echo "Warning: #$num is still conflicting long after the rebase" \
+               "request; it likely needs manual attention." >&2
+        fi
+        ;;
+      *)
+        # UNKNOWN: GitHub is still computing mergeability; wait it out.
+        ;;
+    esac
+  done
+
+  echo "Waiting ${poll}s for GitHub/dependabot to catch up..."
+  sleep "$poll"
+done
+
+echo "Gave up after $max_rounds rounds. Still open:" >&2
+list_open_prs >&2
+exit 1
