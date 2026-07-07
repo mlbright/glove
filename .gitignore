@@ -105,3 +105,6 @@ yarn-debug.log*
 
 /app/assets/builds/*
 !/app/assets/builds/.keep
+
+# Backup credentials for the systemd backup timer (see deploy/backup.env.example).
+/deploy/backup.env
