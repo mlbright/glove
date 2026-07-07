@@ -44,7 +44,7 @@ check-ruby:
 install-deps:
 	sudo apt-get update -qq
 	sudo apt-get install -y -qq \
-		build-essential git curl rsync sqlite3 libsqlite3-dev libvips awscli \
+		build-essential git curl rsync sqlite3 libsqlite3-dev libvips \
 		libssl-dev libreadline-dev zlib1g-dev libyaml-dev libffi-dev
 
 install-web: check-ruby

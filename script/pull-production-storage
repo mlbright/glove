@@ -43,7 +43,7 @@ error() { printf "${RED}[FAIL]${NC}  %s\n" "$1"; }
 die()   { error "$1"; exit 1; }
 
 HOST="rattlesnake"
-REMOTE_DIR="/home/mbright/glove/storage"
+REMOTE_DIR="/home/ubuntu/glove/storage"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOCAL_DIR="$ROOT_DIR/storage"
 
