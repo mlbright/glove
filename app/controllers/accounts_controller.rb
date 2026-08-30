@@ -42,6 +42,6 @@ class AccountsController < ApplicationController
   end
 
   def account_params
-    params.require(:account).permit(:name, :color, :description)
+    params.require(:account).permit(:name, :color, :description, :import_format)
   end
 end

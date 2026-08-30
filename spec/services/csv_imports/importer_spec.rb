@@ -13,7 +13,7 @@ RSpec.describe CsvImports::Importer do
         "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :td_chequing)
+      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
       result = importer.import(csv_content)
 
       # 3 transactions: opening balance + 2 imported
@@ -57,7 +57,7 @@ RSpec.describe CsvImports::Importer do
         "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :td_chequing)
+      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
       result = importer.import(csv_content)
 
       # First row is duplicate (skipped), second row is imported
@@ -76,14 +76,14 @@ RSpec.describe CsvImports::Importer do
       CSV
 
       # First import
-      importer1 = described_class.new(user: user, account: account, format: :td_chequing)
+      importer1 = described_class.new(user: user, account: account, import_format: :td_chequing)
       result1 = importer1.import(csv_content)
 
       expect(result1.imported_count).to eq 3 # Opening balance + 2 transactions
       expect(account.transactions.count).to eq 3
 
       # Second import should skip all CSV rows as duplicates
-      importer2 = described_class.new(user: user, account: account, format: :td_chequing)
+      importer2 = described_class.new(user: user, account: account, import_format: :td_chequing)
       result2 = importer2.import(csv_content)
 
       expect(result2.imported_count).to eq 0
@@ -98,7 +98,7 @@ RSpec.describe CsvImports::Importer do
         "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :td_chequing)
+      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
       result = importer.import(csv_content)
 
       expect(result.imported_count).to eq 2 # Opening balance + 1 transaction
@@ -116,7 +116,7 @@ RSpec.describe CsvImports::Importer do
         11/23/2025,TIM HORTONS #0788,3.70,,1924.29
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :td_visa)
+      importer = described_class.new(user: user, account: account, import_format: :td_visa)
       result = importer.import(csv_content)
 
       # 3 transactions: opening balance + 2 imported
@@ -145,7 +145,7 @@ RSpec.describe CsvImports::Importer do
         "LOBLAWS MAIN ST","PURCHASE","JOHN DOE","12/11/2025","01:25 AM","-79.05"
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :mastercard)
+      importer = described_class.new(user: user, account: account, import_format: :mastercard)
       result = importer.import(csv_content)
 
       expect(result.imported_count).to eq 2
@@ -170,14 +170,14 @@ RSpec.describe CsvImports::Importer do
       CSV
 
       # First import
-      importer1 = described_class.new(user: user, account: account, format: :mastercard)
+      importer1 = described_class.new(user: user, account: account, import_format: :mastercard)
       result1 = importer1.import(csv_content)
 
       expect(result1.imported_count).to eq 1
       expect(account.transactions.count).to eq 1
 
       # Second import of same data should skip all as duplicates
-      importer2 = described_class.new(user: user, account: account, format: :mastercard)
+      importer2 = described_class.new(user: user, account: account, import_format: :mastercard)
       result2 = importer2.import(csv_content)
 
       expect(result2.imported_count).to eq 0
@@ -193,7 +193,7 @@ RSpec.describe CsvImports::Importer do
         "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
       CSV
 
-      importer = described_class.new(user: user, account: account, format: :mastercard)
+      importer = described_class.new(user: user, account: account, import_format: :mastercard)
       result = importer.import(csv_content)
 
       # Should only import one, skip the duplicate
@@ -204,11 +204,11 @@ RSpec.describe CsvImports::Importer do
     end
   end
 
-  describe "#import with unknown format" do
+  describe "#import with an unknown format" do
     it "raises an error" do
-      importer = described_class.new(user: user, account: account, format: :unknown)
+      importer = described_class.new(user: user, account: account, import_format: :unknown)
 
-      expect { importer.import("data") }.to raise_error(ArgumentError, /Unknown format/)
+      expect { importer.import("data") }.to raise_error(ArgumentError, /Unknown import format/)
     end
   end
 
@@ -220,7 +220,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         importer.import(csv_content)
 
         transactions = account.transactions.where.not(description: "Opening Balance").order(:occurred_on)
@@ -242,7 +242,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         result = importer.import(csv_content)
 
         expect(result.warnings.count).to eq 1
@@ -272,7 +272,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         result = importer.import(csv_content)
 
         expect(result.imported_count).to eq 1
@@ -300,7 +300,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         result = importer.import(csv_content)
 
         expect(result.imported_count).to eq 1
@@ -325,7 +325,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         result = importer.import(csv_content)
 
         # Should be skipped as duplicate (same balance_cents)
@@ -349,7 +349,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         result = importer.import(csv_content)
 
         # Should import as new transaction (different balance_cents)
@@ -363,7 +363,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_chequing)
+        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
         importer.import(csv_content_initial)
 
         # Add a manual transaction after the import
@@ -382,7 +382,7 @@ RSpec.describe CsvImports::Importer do
           "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
         CSV
 
-        importer2 = described_class.new(user: user, account: account, format: :td_chequing)
+        importer2 = described_class.new(user: user, account: account, import_format: :td_chequing)
         importer2.import(csv_content_new)
 
         # The manual transaction should have its balance_cents updated
@@ -400,7 +400,7 @@ RSpec.describe CsvImports::Importer do
           11/23/2025,TIM HORTONS #0788,3.70,,1924.29
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_visa)
+        importer = described_class.new(user: user, account: account, import_format: :td_visa)
         importer.import(csv_content)
 
         transactions = account.transactions.where.not(description: "Opening Balance").order(:occurred_on)
@@ -421,7 +421,7 @@ RSpec.describe CsvImports::Importer do
           11/23/2025,TIM HORTONS #0788,3.70,,1924.29
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :td_visa)
+        importer = described_class.new(user: user, account: account, import_format: :td_visa)
         result = importer.import(csv_content)
 
         expect(result.warnings.count).to eq 1
@@ -447,7 +447,7 @@ RSpec.describe CsvImports::Importer do
           "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
         CSV
 
-        importer = described_class.new(user: user, account: account, format: :mastercard)
+        importer = described_class.new(user: user, account: account, import_format: :mastercard)
         result = importer.import(csv_content)
 
         # Should NOT create balance adjustment or warnings for Mastercard

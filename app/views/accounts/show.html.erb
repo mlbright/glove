@@ -1,6 +1,14 @@
 <div class="flex items-center justify-between">
   <div>
     <h1 class="text-2xl font-semibold text-slate-900"><%= @account.name %></h1>
+    <p class="mt-1 text-sm text-slate-500">
+      Import format:
+      <% if @account.importable? %>
+        <span class="text-slate-700"><%= @account.import_format_label %></span>
+      <% else %>
+        <span class="text-amber-600">Not set</span> — this account cannot be imported into.
+      <% end %>
+    </p>
   </div>
   <div class="flex gap-3">
     <%= link_to "Edit", edit_account_path(@account), class: "rounded border border-slate-300 px-4 py-2" %>

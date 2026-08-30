@@ -12,6 +12,17 @@
     <%= form.text_area :description, rows: 4, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
   </div>
   <div>
+    <%= form.label :import_format, "Import format", class: "block text-sm font-medium text-slate-700" %>
+    <%= form.select :import_format,
+                    CsvImports::Format.options_for_select,
+                    { include_blank: "None — this account is not imported from CSV" },
+                    class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    <p class="mt-1 text-xs text-slate-500">
+      The CSV shape this account's bank exports. It decides how uploaded files are read, so an
+      account without one cannot be imported into.
+    </p>
+  </div>
+  <div>
     <%= form.submit class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
   </div>
 <% end %>

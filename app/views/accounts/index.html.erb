@@ -7,6 +7,7 @@
   <thead>
     <tr class="text-slate-500">
       <th class="py-2">Name</th>
+      <th class="py-2">Import format</th>
       <th class="py-2 text-right">Balance</th>
       <th></th>
     </tr>
@@ -18,6 +19,13 @@
           <%= account.name %>
           <% if account.archived_at? %>
             <span class="ml-2 rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-600">Archived</span>
+          <% end %>
+        </td>
+        <td class="py-3 text-slate-600">
+          <% if account.importable? %>
+            <%= account.import_format_label %>
+          <% else %>
+            <span class="text-amber-600">Not set</span>
           <% end %>
         </td>
         <td class="py-3 text-right font-semibold <%= account.balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(account.balance) %></td>

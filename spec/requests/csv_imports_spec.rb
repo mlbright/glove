@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe "CsvImports", type: :request do
   let(:user) { create(:user) }
-  let!(:account) { create(:account, name: "TD Chequing") }
+  let!(:account) { create(:account, name: "TD Chequing", import_format: "td_chequing") }
 
   before { sign_in user, scope: :user }
 
@@ -15,6 +15,41 @@ RSpec.describe "CsvImports", type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Import CSV")
       expect(response.body).to include(account.name)
+    end
+
+    it "carries each account's import format on its option" do
+      visa = create(:account, name: "TD personal VISA", import_format: "td_visa")
+
+      get new_csv_import_path
+
+      expect(response.body).to include(%(data-format="td_chequing"))
+      expect(response.body).to include(%(data-format-label="TD Chequing Account"))
+      expect(response.body).to include(%(data-format="td_visa"))
+      expect(response.body).to include(visa.name)
+    end
+
+    it "ships every format's reference block for the client to narrow" do
+      get new_csv_import_path
+
+      CsvImports::Format.all.each do |format|
+        expect(response.body).to include(%(data-format-key="#{format.key}"))
+        expect(response.body).to include(format.label)
+      end
+    end
+
+    it "disables accounts with no import format and links to their edit page" do
+      formatless = create(:account, name: "Cash jar", import_format: nil)
+
+      get new_csv_import_path
+
+      expect(response.body).to include("no import format set")
+      expect(response.body).to include(edit_account_path(formatless))
+    end
+
+    it "offers no format select of its own" do
+      get new_csv_import_path
+
+      expect(response.body).not_to include(%(name="format_type"))
     end
   end
 
@@ -37,7 +72,6 @@ RSpec.describe "CsvImports", type: :request do
       expect {
         post csv_imports_path, params: {
           account_id: account.id,
-          format_type: "td_chequing",
           csv_file: file
         }
       }.to change(Transaction, :count).by(3)
@@ -49,8 +83,7 @@ RSpec.describe "CsvImports", type: :request do
 
     it "requires a CSV file" do
       post csv_imports_path, params: {
-        account_id: account.id,
-        format_type: "td_chequing"
+        account_id: account.id
       }
 
       expect(response).to have_http_status(:unprocessable_entity)
@@ -66,7 +99,6 @@ RSpec.describe "CsvImports", type: :request do
 
       post csv_imports_path, params: {
         account_id: 999999,
-        format_type: "td_chequing",
         csv_file: file
       }
 
@@ -74,21 +106,43 @@ RSpec.describe "CsvImports", type: :request do
       expect(response.body).to include("Please select a valid account")
     end
 
-    it "requires a valid format" do
+    it "refuses an account with no import format" do
+      formatless = create(:account, name: "Cash jar", import_format: nil)
       file = Rack::Test::UploadedFile.new(
         StringIO.new(csv_content),
         "text/csv",
         original_filename: "transactions.csv"
       )
 
+      expect {
+        post csv_imports_path, params: {
+          account_id: formatless.id,
+          csv_file: file
+        }
+      }.not_to change(Transaction, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.body).to include("has no import format set")
+    end
+
+    it "ignores a format supplied by the client and uses the account's own" do
+      visa_csv = "11/24/2025,BALANCE PROTECTION INS,20.67,,2109.88\n"
+      file = Rack::Test::UploadedFile.new(
+        StringIO.new(visa_csv),
+        "text/csv",
+        original_filename: "transactions.csv"
+      )
+
+      # The account is td_chequing; a td_visa CSV cannot be read by that parser,
+      # so a client-supplied format_type must not talk the server into using it.
       post csv_imports_path, params: {
         account_id: account.id,
-        format_type: "invalid_format",
+        format_type: "td_visa",
         csv_file: file
       }
 
-      expect(response).to have_http_status(:unprocessable_entity)
-      expect(response.body).to include("Please select a valid import format")
+      expect(Transaction.joins(:account).where(accounts: { id: account.id })
+               .where(description: "BALANCE PROTECTION INS")).to be_empty
     end
   end
 end

@@ -1,20 +1,12 @@
 # frozen_string_literal: true
 
 class CsvImportsController < ApplicationController
-  SUPPORTED_FORMATS = {
-    "td_chequing" => "TD Chequing Account",
-    "td_visa" => "TD Visa Credit Card",
-    "mastercard" => "PC Financial Mastercard"
-  }.freeze
-
   def new
     @accounts = Account.active.order(:name)
-    @formats = SUPPORTED_FORMATS
   end
 
   def create
     @accounts = Account.active.order(:name)
-    @formats = SUPPORTED_FORMATS
 
     unless params[:csv_file].present?
       flash.now[:alert] = "Please select a CSV file to import."
@@ -27,14 +19,19 @@ class CsvImportsController < ApplicationController
       return render :new, status: :unprocessable_entity
     end
 
-    format = params[:format_type]
-    unless SUPPORTED_FORMATS.key?(format)
-      flash.now[:alert] = "Please select a valid import format."
+    # The account decides the format, so an account without one cannot be
+    # imported into. The request never carries a format of its own.
+    unless account.importable?
+      flash.now[:alert] = "#{account.name} has no import format set. Set one on the account before importing."
       return render :new, status: :unprocessable_entity
     end
 
     file_content = params[:csv_file].read
-    importer = CsvImports::Importer.new(user: current_user, account: account, format: format)
+    importer = CsvImports::Importer.new(
+      user: current_user,
+      account: account,
+      import_format: account.import_format
+    )
     @result = importer.import(file_content)
     @account = account
 

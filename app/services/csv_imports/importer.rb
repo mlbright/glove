@@ -3,30 +3,18 @@
 module CsvImports
   # Service to import parsed CSV rows into the database as transactions
   class Importer
-    ACCOUNT_FORMATS = {
-      td_chequing: TdChequingParser,
-      td_visa: TdVisaParser,
-      mastercard: MastercardParser
-    }.freeze
-
-    # Formats that support balance reconciliation (have balance_cents in parsed rows)
-    BALANCE_FORMATS = %i[td_chequing td_visa].freeze
-
     ImportResult = Data.define(:imported_count, :skipped_count, :error_count, :errors, :warnings, :skipped_duplicates)
     SkippedDuplicate = Data.define(:occurred_on, :description, :amount_cents, :entry_type)
     BalanceWarning = Data.define(:expected_balance_cents, :actual_balance_cents, :occurred_on, :message)
 
-    def initialize(user:, account:, format:)
+    def initialize(user:, account:, import_format:)
       @user = user
       @account = account
-      @format = format.to_sym
+      @import_format = import_format.to_s
     end
 
     def import(file_content)
-      parser_class = ACCOUNT_FORMATS[@format]
-      raise ArgumentError, "Unknown format: #{@format}" unless parser_class
-
-      parser = parser_class.new(file_content)
+      parser = Format.parser_for(@import_format).new(file_content)
       parse_result = parser.parse
 
       @imported_count = 0
@@ -66,14 +54,14 @@ module CsvImports
     end
 
     def supports_balance_reconciliation?
-      BALANCE_FORMATS.include?(@format)
+      Format.fetch(@import_format).reconciles_balance?
     end
 
     # Sort rows by date and row_index to get chronological order
     # TD Chequing: already chronological (oldest first), smallest row_index first for same date
     # TD Visa: reverse chronological in CSV, so we sort to get oldest first, largest row_index first for same date
     def sort_rows_chronologically(rows)
-      if @format == :td_visa
+      if @import_format == "td_visa"
         rows.sort_by { |r| [ r.occurred_at, r.respond_to?(:row_index) ? -r.row_index : 0 ] }
       else
         rows.sort_by { |r| [ r.occurred_at, r.respond_to?(:row_index) ? r.row_index : 0 ] }
@@ -183,7 +171,7 @@ module CsvImports
     # Calculate what the balance should be BEFORE the given row based on the CSV data
     # This works backwards from the row's balance after the transaction
     def calculate_balance_before_row(row)
-      if @format == :td_visa
+      if @import_format == "td_visa"
         # TD Visa: balance = debt. Expense increases debt, income decreases it.
         if row.entry_type == :income
           row.balance_cents + row.amount_cents
@@ -311,7 +299,7 @@ module CsvImports
 
       newer_existing.each do |transaction|
         # Calculate new balance after this transaction
-        running_balance = if @format == :td_visa
+        running_balance = if @import_format == "td_visa"
           transaction.income? ? running_balance - transaction.amount_cents : running_balance + transaction.amount_cents
         else
           transaction.income? ? running_balance + transaction.amount_cents : running_balance - transaction.amount_cents
@@ -370,7 +358,7 @@ module CsvImports
     #   → For same-date rows, lowest row_index = oldest
     def create_opening_balance_transaction(rows)
       # Find the earliest row based on format's sort order
-      earliest_row = if @format == :td_visa
+      earliest_row = if @import_format == "td_visa"
         # Reverse chronological: min date, max row_index for same-date rows
         rows.min_by { |r| [ r.occurred_at, r.respond_to?(:row_index) ? -r.row_index : 0 ] }
       else
@@ -396,7 +384,7 @@ module CsvImports
       # Determine entry type based on whether opening balance is positive or negative
       # For TD Visa: positive balance = debt (expense), negative = credit (income)
       # For other formats: positive = income, negative = expense
-      entry_type = if @format == :td_visa
+      entry_type = if @import_format == "td_visa"
         opening_balance_cents >= 0 ? :expense : :income
       else
         opening_balance_cents >= 0 ? :income : :expense
