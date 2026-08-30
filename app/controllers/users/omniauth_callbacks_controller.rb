@@ -15,15 +15,19 @@ module Users
     def handle_auth(kind)
       @user = User.from_omniauth(request.env["omniauth.auth"])
 
-      if @user.persisted?
-        sign_in_and_redirect @user, event: :authentication
-        set_flash_message(:notice, :success, kind: kind) if is_navigational_format?
-      else
-        redirect_to root_path, alert: "Unable to sign in with #{kind}."
-      end
+      sign_in_and_redirect @user, event: :authentication
+      set_flash_message(:notice, :success, kind: kind) if is_navigational_format?
+    rescue User::EmailNotAllowed => e
+      Rails.logger.warn("Rejected sign-in for #{e.email}: not on ALLOWED_EMAILS")
+      redirect_to new_user_session_path,
+                  alert: "This app is private. #{e.email} is not authorized."
+    rescue User::EmailMissing
+      Rails.logger.warn("Rejected sign-in: provider returned no verified email")
+      redirect_to new_user_session_path,
+                  alert: "#{kind} did not provide an email address."
     rescue StandardError => e
-      Rails.logger.error("OmniAuth failure: #{e.message}")
-      redirect_to root_path, alert: "Authentication failed."
+      Rails.logger.error("OmniAuth failure: #{e.class}: #{e.message}")
+      redirect_to new_user_session_path, alert: "Authentication failed."
     end
 
     def failure_message

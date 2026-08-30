@@ -119,6 +119,10 @@ RAILS_PRODUCTION_HOSTS=hippo.chameleon-gopher.ts.net
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 
+# Comma-separated addresses permitted to sign in. REQUIRED: if this is
+# missing or empty the app fails closed and nobody can sign in.
+ALLOWED_EMAILS=person1@gmail.com,person2@gmail.com
+
 # Only needed if config/master.key is absent.
 #RAILS_MASTER_KEY=...
 ```
@@ -231,7 +235,12 @@ come from the old machine.
    #   RAILS_RELATIVE_URL_ROOT=/glove
    #   RAILS_PRODUCTION_HOSTS=<public host>
    #   GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET
+   #   ALLOWED_EMAILS=<comma-separated sign-in allowlist>
    ```
+
+   `ALLOWED_EMAILS` is new and will not be present in an `.env` copied from
+   rattlesnake. Without it the app starts normally but denies every sign-in,
+   logging `ALLOWED_EMAILS is unset or empty` at error level.
 
 5. **Create the backup credentials** (the old machine had no backup timer):
 

@@ -2,6 +2,7 @@
 
 A single-tenant Ruby on Rails application for tracking income and expenses, managing multiple accounts, with CSV imports and tag clouds.
 Authentication is powered exclusively by Google OAuth, so no passwords are stored but you must have a Google account and Google OAuth credentials.
+Sign-in is restricted to an explicit allowlist of email addresses (`ALLOWED_EMAILS`); a Google account that is not on the list cannot sign in, and no user record is created for it.
 
 This project is intended for personal use and highly specific to my own financial profile.
 For instance, the CSV import templates are tailored to the export formats of my banks and credit cards.
@@ -36,7 +37,13 @@ Configure OAuth credentials via environment variables (e.g. `.env`).
 ```
 GOOGLE_CLIENT_ID=xxxx
 GOOGLE_CLIENT_SECRET=xxxx
+ALLOWED_EMAILS=you@gmail.com,partner@gmail.com
 ```
+
+`ALLOWED_EMAILS` is a comma-separated list of the addresses permitted to sign in.
+Matching ignores case and surrounding whitespace.
+**If it is unset or empty, every sign-in is denied** - the app fails closed rather than open, and logs an error explaining why.
+Adding or removing a person is an environment change plus a restart; no code change is needed.
 
 ### OAuth credential setup
 
@@ -44,6 +51,7 @@ GOOGLE_CLIENT_SECRET=xxxx
 
 1. Visit <https://console.cloud.google.com/> and select or create a project.
 2. Under **APIs & Services → OAuth consent screen**, choose *External* and add your email as a test user (no verification needed for local use).
+   Google's test-user list is separate from `ALLOWED_EMAILS`: the former decides who may complete the OAuth flow, the latter decides who this app admits afterwards. An address must be on both.
 3. Navigate to **APIs & Services → Credentials → Create Credentials → OAuth client ID** and select *Web application*.
 4. Set **Authorized JavaScript origins** to the host that serves the Rails app (e.g. `http://localhost:3000` or `http://YOUR_HOST:3000`).
 5. Add **Authorized redirect URIs** for Devise/OmniAuth callbacks, typically `http://localhost:3000/users/auth/google_oauth2/callback` and any additional host you use on the network.
@@ -92,7 +100,7 @@ app at the `/glove` subpath), S3 backups, and machine migration.
 - **Accounts** support multiple financial sources (checking, savings, credit card, etc.).
 - **Tags** with automatic slugging and aggregated cloud view.
 - **Bulk CSV import** using saved templates to map columns to transaction attributes; results logged per batch with audit history.
-- **OAuth authentication** via Google with Devise + OmniAuth.
+- **OAuth authentication** via Google with Devise + OmniAuth, restricted to an allowlist of email addresses.
 
 ## Bulk import workflow
 
@@ -107,6 +115,8 @@ Every transaction create/update/destroy writes a `TransactionRevision` with a ti
 ## Accessibility & Security
 
 - Devise handles session management; only OAuth sign-in is allowed.
+- Sign-in is further restricted to the addresses in `ALLOWED_EMAILS`, enforced before any `User` record is written. An unset or empty list denies everyone.
+- Only email addresses Google reports as verified are accepted; the unverified address is never used as a fallback.
 - CSRF protection is enabled throughout.
 
 [tailscale]: https://tailscale.com/
