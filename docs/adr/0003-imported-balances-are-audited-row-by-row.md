@@ -42,22 +42,45 @@ February, March and April 2026; 15 of the account's 17 duplicate groups fall in
 those same three months. The violations are not scattered noise, and they are
 not distributed like a parser defect would be.
 
-The residuals then settle the account's true balance. They sum to $1,146.56.
-The VISA's checkpoint anchor is -$1,471.77, and -$1,471.77 + $1,146.56 is
--$325.21 — which is, to the cent, the last balance TD itself printed on that
-card, on 2026-08-21. Two routes that share no arithmetic arrive at the same
-number.
+The residuals sum to $1,146.56 on that account and to exactly zero on the other
+three. This is worth stating carefully, because the arithmetic is weaker than it
+first appears. The per-pair residuals telescope: summed across an account they
+collapse to the bank's last printed balance minus the ledger balance, so
 
-That figure supersedes an estimate in ADR 2. That decision reasoned that the 45
-excess rows are worth $1,205.94 at face value and put the repaired VISA at
-roughly -$265.83. The chain says the excess rows' *net* effect is $1,146.56,
-$59.38 less, because valuing a duplicate at face assumes it is pure surplus and
-some of these sit inside groups the chain reorders rather than inflates.
+    ledger + total residual == last printed balance
 
-The same test independently confirms the rest of ADR 2. The last balances TD
-printed are $191.92 on personal chequing, $13,563.22 on joint chequing and
-$4,873.30 on joint savings, which are the three migrated balances that decision
-predicts, reached here by summing nothing at all.
+is an identity that holds for any data at all, and does hold for all four
+accounts here including the corrupt one. The total residual is therefore not
+independent evidence about a balance — it is a restatement of the gap between
+what Glove sums and what the bank printed. What the residual adds is not the
+total but its *distribution*, which no identity determines.
+
+That distribution is the evidence. Forty of the VISA's 52 violations fall in
+February, March and April 2026; 15 of its 17 duplicate groups fall in those same
+three months. The account's error is not smeared across 903 rows, and knowing
+that is what a total can never tell you.
+
+The last balance TD printed on the VISA is -$325.21, on 2026-08-21. That figure
+supersedes an estimate in ADR 2, which valued the 45 excess rows at $1,205.94 at
+face and put the repaired card at roughly -$265.83. It is better evidence than
+the estimate because TD asserted it rather than Glove inferring it, and the
+$59.38 between the two is the difference between a duplicate's face value and
+its net effect on the chain.
+
+On the other three accounts a zero residual says the ledger and the last printed
+balance agree, which is the same fact as the zero break count rather than a
+second one. Those printed balances — $191.92, $13,563.22 and $4,873.30 — are the
+migrated balances ADR 2 predicts. They confirm that decision's arithmetic
+against TD's own, which is worth having, but it is one check passing and not
+two.
+
+The column supports a second, narrower inference. Within a group of rows sharing
+a date, description, amount and entry type, two rows that also share a printed
+balance cannot both be genuine: a balance is the account *after* a row, and two
+distinct events with a non-zero amount cannot leave it in the same state. On the
+VISA every one of the 17 duplicate groups contains such rows — eight of the nine
+`CONV FEE -TORONTO RSD` rows all read 2517.29 — and no row on the account has a
+zero amount, so the inference is available on all of them.
 
 ## Decision
 
@@ -83,6 +106,17 @@ and April exports. Ordering asks which of two rows came first in one file, which
 is the only question a row number can answer well. Rows predating the column —
 which today is all of them — fall back to `(occurred_on, id)`, and that fallback
 is why the evidence above could be gathered at all.
+
+Rows identical in date, description, amount, entry type *and* printed balance
+are collapsed to one. This uses the balance column in the only direction it can
+bear: it may merge two rows, never split them. The converse rule — that rows
+differing in balance are therefore different transactions — is what the importer
+did before ADR 2, and is the mechanism that produced these duplicates, because a
+re-import prints a different running balance against the same purchase. ADR 2
+rejected balance as part of the matching key and that rejection stands; matching
+asks whether two rows are the same event, and a differing balance is no evidence
+that they are not. Collapsing asks the opposite question, where an identical
+balance is conclusive.
 
 A violation is reported and never repaired, which is ADR 2's rule and is not
 weakened here. The system does not reorder rows, flip a sign, or delete a
@@ -114,11 +148,19 @@ actually sent.
 
 ## Consequences
 
-The VISA stops being described by an estimate. Rebuilding it from re-downloaded
-statements gains a target — 52 violations, net $1,146.56, concentrated in three
-months — and a figure to land on, -$325.21, that TD printed and the chain
-derives independently. The estimate of roughly -$265.83 in ADR 2's Consequences
-is superseded and should be read as the earlier of two numbers.
+The VISA becomes partly repairable in place, which ADR 2 says it is not. That
+decision concluded the account could only be rebuilt from re-downloaded
+statements, because its duplicates are real rows and its source files are gone.
+Collapsing on an identical printed balance removes 28 of the 45 excess rows on
+evidence already in the database: it takes the account from 903 rows to 875,
+halves the violations from 52 to 28, and moves the ledger from -$1,471.77 to
+-$735.62, recovering $736.15 of the $1,146.56 gap. ADR 2's conclusion holds for
+the remainder — $410.41 across 17 excess rows whose balances differ, which no
+rule available here can adjudicate, and which still needs the statements.
+
+The target for that remaining work is -$325.21, the last balance TD printed.
+The estimate of roughly -$265.83 in ADR 2's Consequences is superseded and
+should be read as the earlier of two numbers.
 
 The three deposit accounts gain a standing check that passes on every pair
 today. Its value is entirely prospective: it is the thing that would have caught
