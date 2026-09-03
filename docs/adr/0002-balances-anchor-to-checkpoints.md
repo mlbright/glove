@@ -111,8 +111,9 @@ becomes $191.92, which the overdraft protection fees in its own history make
 plausible. Joint chequing rises from $12,711.62 to $13,563.22. Joint savings
 falls from $13,432.40 to $4,873.30. The VISA does not move on migration at all,
 staying at -$1,471.77, and reaches roughly -$265.83 once its duplicates are
-gone. Each of these is checkable against a statement, and checking them is the
-first step of the work rather than the last.
+gone (ADR 3 supersedes that last figure with -$325.21, measured rather than
+estimated). Each of these is checkable against a statement, and checking them
+is the first step of the work rather than the last.
 
 Three of these four figures were first written down a day earlier, before the
 rule above had been settled: -$202.69, $15,214.38, $4,870.80 and -$1,401.12.
