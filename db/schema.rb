@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_30_120001) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_03_120004) do
   create_table "accounts", force: :cascade do |t|
     t.datetime "archived_at"
     t.string "color"
@@ -50,6 +50,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_120001) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "checkpoints", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.integer "balance_cents", null: false
+    t.date "closed_on", null: false
+    t.datetime "created_at", null: false
+    t.integer "source", default: 0, null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "closed_on"], name: "index_checkpoints_on_account_id_and_closed_on", unique: true
+    t.index ["account_id"], name: "index_checkpoints_on_account_id"
+  end
+
+  create_table "csv_imports", force: :cascade do |t|
+    t.integer "account_id", null: false
+    t.datetime "created_at", null: false
+    t.string "digest", null: false
+    t.string "filename", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["account_id"], name: "index_csv_imports_on_account_id"
+    t.index ["digest"], name: "index_csv_imports_on_digest"
+    t.index ["user_id"], name: "index_csv_imports_on_user_id"
+  end
+
+  create_table "revisions", force: :cascade do |t|
+    t.string "action", null: false
+    t.json "change_log", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.integer "record_id", null: false
+    t.string "record_type", null: false
+    t.datetime "recorded_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["record_type", "record_id", "recorded_at"], name: "index_revisions_on_record_type_and_record_id_and_recorded_at"
+    t.index ["user_id"], name: "index_revisions_on_user_id"
+  end
+
   create_table "tags", force: :cascade do |t|
     t.string "color"
     t.datetime "created_at", null: false
@@ -60,19 +96,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_120001) do
     t.index ["color"], name: "index_tags_on_color"
     t.index ["user_id", "slug"], name: "index_tags_on_user_id_and_slug", unique: true
     t.index ["user_id"], name: "index_tags_on_user_id"
-  end
-
-  create_table "transaction_revisions", force: :cascade do |t|
-    t.string "action", null: false
-    t.json "change_log", default: {}, null: false
-    t.datetime "created_at", null: false
-    t.datetime "recorded_at", null: false
-    t.integer "transaction_id", null: false
-    t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
-    t.index ["transaction_id", "recorded_at"], name: "index_transaction_revisions_on_transaction_id_and_recorded_at"
-    t.index ["transaction_id"], name: "index_transaction_revisions_on_transaction_id"
-    t.index ["user_id"], name: "index_transaction_revisions_on_user_id"
   end
 
   create_table "transaction_tags", force: :cascade do |t|
@@ -87,18 +110,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_120001) do
 
   create_table "transactions", force: :cascade do |t|
     t.integer "account_id", null: false
+    t.integer "adjusts_checkpoint_id"
     t.integer "amount_cents", null: false
     t.integer "balance_cents"
     t.datetime "created_at", null: false
+    t.integer "csv_import_id"
     t.text "description"
     t.integer "entry_type", default: 0, null: false
     t.boolean "excludes_from_balance", default: false, null: false
+    t.integer "import_row_number"
     t.text "notes"
     t.datetime "occurred_on", null: false
     t.integer "status", default: 0, null: false
     t.datetime "updated_at", null: false
     t.index ["account_id"], name: "index_transactions_on_account_id"
     t.index ["account_id"], name: "index_transactions_on_account_id_and_occurred_on"
+    t.index ["adjusts_checkpoint_id"], name: "index_transactions_on_adjusts_checkpoint_id"
+    t.index ["csv_import_id"], name: "index_transactions_on_csv_import_id"
     t.index ["entry_type"], name: "index_transactions_on_entry_type"
   end
 
@@ -120,9 +148,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_30_120001) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "checkpoints", "accounts"
+  add_foreign_key "csv_imports", "accounts"
+  add_foreign_key "csv_imports", "users"
+  add_foreign_key "revisions", "users"
   add_foreign_key "tags", "users"
-  add_foreign_key "transaction_revisions", "users"
   add_foreign_key "transaction_tags", "tags"
   add_foreign_key "transaction_tags", "transactions"
   add_foreign_key "transactions", "accounts"
+  add_foreign_key "transactions", "checkpoints", column: "adjusts_checkpoint_id"
+  add_foreign_key "transactions", "csv_imports"
 end

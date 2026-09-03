@@ -107,12 +107,24 @@ description of a balance is gone, and a reader must now know which checkpoint is
 in force before the number means anything.
 
 Balances move, in some cases sharply. Personal chequing reads $3,844.09 and
-becomes -$202.69, which the overdraft protection fees in its own history make
-plausible. Joint chequing rises from $12,711.62 to $15,214.38. Joint savings
-falls from $13,432.40 to $4,870.80. The VISA moves only slightly on migration,
-from -$1,471.77 to -$1,401.12, and reaches roughly -$195.18 once its duplicates
-are gone. Each of these is checkable against a statement, and checking them is
-the first step of the work rather than the last.
+becomes $191.92, which the overdraft protection fees in its own history make
+plausible. Joint chequing rises from $12,711.62 to $13,563.22. Joint savings
+falls from $13,432.40 to $4,873.30. The VISA does not move on migration at all,
+staying at -$1,471.77, and reaches roughly -$265.83 once its duplicates are
+gone. Each of these is checkable against a statement, and checking them is the
+first step of the work rather than the last.
+
+Three of these four figures were first written down a day earlier, before the
+rule above had been settled: -$202.69, $15,214.38, $4,870.80 and -$1,401.12.
+They were computed as though a transaction dated on the checkpoint's own day
+fell outside it. It does not — a checkpoint is an end-of-day closing balance, so
+that day's rows are already inside the number and only what follows adds to it.
+Joint savings is the clearest case: TD's own balance column closes it at
+$15,372.43 on 2025-12-18, and a $2.50 row on 2025-12-19 carries it to
+$15,374.93. The earlier arithmetic dropped that $2.50. The VISA's anchor lands
+on 2025-06-21 with one row on 2025-06-22 worth -$70.65, which is exactly the
+difference between the two figures given for it. The figures above are the ones
+the implemented rule produces, verified against a copy of the live database.
 
 The 111 transactions flagged `excludes_from_balance` are all dated on or before
 2025-12-10, which places every one of them before its account's checkpoint. They

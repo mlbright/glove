@@ -31,4 +31,18 @@ RSpec.describe CsvImports::Format do
     expect(described_class.fetch("td_visa")).to be_reconciles_balance
     expect(described_class.fetch("mastercard")).not_to be_reconciles_balance
   end
+
+  # A bank prints a card's balance as the amount owing. Glove signs a balance
+  # the way Account#balance does -- funds positive, debt negative -- so a card's
+  # printed number has to be turned over on the way in.
+  it "knows whose printed balance is a debt" do
+    expect(described_class.fetch("td_visa")).to be_balance_is_debt
+    expect(described_class.fetch("mastercard")).to be_balance_is_debt
+    expect(described_class.fetch("td_chequing")).not_to be_balance_is_debt
+  end
+
+  it "signs a printed balance according to the account it came from" do
+    expect(described_class.fetch("td_chequing").signed_balance_cents(150_000)).to eq 150_000
+    expect(described_class.fetch("td_visa").signed_balance_cents(210_988)).to eq(-210_988)
+  end
 end

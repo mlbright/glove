@@ -21,7 +21,7 @@ RSpec.describe Transaction, type: :model do
     transaction = build(:transaction, account: account)
     transaction.acted_by = user
 
-    expect { transaction.save! }.to change(TransactionRevision, :count).by(1)
+    expect { transaction.save! }.to change(Revision, :count).by(1)
   end
 
   it "records revisions on update" do
@@ -29,6 +29,6 @@ RSpec.describe Transaction, type: :model do
     transaction.acted_by = user
     transaction.save!
 
-    expect { transaction.update!(description: "Lunch") }.to change(TransactionRevision, :count).by(1)
+    expect { transaction.update!(description: "Lunch") }.to change(Revision, :count).by(1)
   end
 end

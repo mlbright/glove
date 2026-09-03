@@ -6,454 +6,333 @@ RSpec.describe CsvImports::Importer do
   let(:user) { create(:user) }
   let(:account) { create(:account, name: "TD Chequing") }
 
+  def import(content, format:, into: account, csv_import: nil)
+    described_class.new(user: user, account: into, import_format: format, csv_import: csv_import)
+                   .import(content)
+  end
+
   describe "#import with td_chequing format" do
-    it "imports transactions from CSV" do
-      csv_content = <<~CSV
+    let(:csv_content) do
+      <<~CSV
         "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
         "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
       CSV
+    end
 
-      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-      result = importer.import(csv_content)
+    it "imports one transaction per row and no synthetic opening balance" do
+      result = import(csv_content, format: :td_chequing)
 
-      # 3 transactions: opening balance + 2 imported
-      expect(result.imported_count).to eq 3
+      expect(result.imported_count).to eq 2
       expect(result.error_count).to eq 0
+      expect(account.transactions.where(description: "Opening Balance")).to be_empty
 
       transactions = account.transactions.order(:occurred_on, :id)
-      expect(transactions.count).to eq 3
-
-      # Opening balance transaction (calculated from first row: 1500.00 - 1000.00 = 500.00)
-      expect(transactions.first.description).to eq "Opening Balance"
-      expect(transactions.first.amount).to eq Money.new(50000, :cad)
+      expect(transactions.first.occurred_on.to_date).to eq Date.new(2025, 11, 14)
+      expect(transactions.first.description).to eq "ACME Corp  PAY"
+      expect(transactions.first.amount).to eq Money.new(100_000, :cad)
       expect(transactions.first.entry_type).to eq "income"
+      expect(transactions.first.status).to eq "cleared"
 
-      # First CSV transaction - credit (income)
-      expect(transactions.second.occurred_on.to_date).to eq Date.new(2025, 11, 14)
-      expect(transactions.second.description).to eq "ACME Corp  PAY"
-      expect(transactions.second.amount).to eq Money.new(100000, :cad)
-      expect(transactions.second.entry_type).to eq "income"
-      expect(transactions.second.status).to eq "cleared"
-
-      # Second CSV transaction - debit (expense)
-      expect(transactions.third.occurred_on.to_date).to eq Date.new(2025, 11, 17)
-      expect(transactions.third.description).to eq "UX215 TFR-TO C1234567"
-      expect(transactions.third.amount).to eq Money.new(80000, :cad)
-      expect(transactions.third.entry_type).to eq "expense"
+      expect(transactions.second.occurred_on.to_date).to eq Date.new(2025, 11, 17)
+      expect(transactions.second.amount).to eq Money.new(80_000, :cad)
+      expect(transactions.second.entry_type).to eq "expense"
     end
 
-    it "skips duplicate transactions and warns about balance mismatch" do
-      # Create an existing transaction (without balance_cents like a legacy entry)
-      create(:transaction,
-        account: account,
-        occurred_on: Time.new(2025, 11, 14),
-        description: "ACME Corp  PAY",
-        amount: 1000.00,
-        entry_type: :income
-      )
+    it "keeps the balance the bank printed against each row" do
+      import(csv_content, format: :td_chequing)
 
-      csv_content = <<~CSV
-        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
-      CSV
-
-      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-      result = importer.import(csv_content)
-
-      # First row is duplicate (skipped), second row is imported
-      expect(result.skipped_count).to eq 1
-      expect(result.imported_count).to eq 1 # Second row only
-      expect(result.warnings.count).to eq 1 # Balance mismatch warning
-      expect(result.warnings.first.message).to include("You may need to manually reconcile")
-      expect(account.transactions.count).to eq 2 # Original + imported
-      expect(account.transactions.find_by(description: "Balance Adjustment")).to be_nil
+      transactions = account.transactions.order(:occurred_on)
+      expect(transactions.first.balance_cents).to eq 150_000
+      expect(transactions.second.balance_cents).to eq 70_000
     end
 
-    it "skips duplicates when re-importing the same CSV" do
-      csv_content = <<~CSV
-        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
-      CSV
+    it "never rewrites the balance a row already carries" do
+      import(csv_content, format: :td_chequing)
+      manual = create(:transaction, account: account, occurred_on: Time.zone.parse("2025-11-20 12:00"),
+                                    description: "Manual entry", amount: 100.00, entry_type: :expense,
+                                    balance_cents: nil)
 
-      # First import
-      importer1 = described_class.new(user: user, account: account, import_format: :td_chequing)
-      result1 = importer1.import(csv_content)
+      import(csv_content, format: :td_chequing)
 
-      expect(result1.imported_count).to eq 3 # Opening balance + 2 transactions
-      expect(account.transactions.count).to eq 3
-
-      # Second import should skip all CSV rows as duplicates
-      importer2 = described_class.new(user: user, account: account, import_format: :td_chequing)
-      result2 = importer2.import(csv_content)
-
-      expect(result2.imported_count).to eq 0
-      expect(result2.skipped_count).to eq 2
-      expect(account.transactions.count).to eq 3
-    end
-
-    it "skips duplicate rows within the same CSV file" do
-      # Two identical rows (same balance_cents) should result in one being skipped
-      csv_content = <<~CSV
-        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-      CSV
-
-      importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-      result = importer.import(csv_content)
-
-      expect(result.imported_count).to eq 2 # Opening balance + 1 transaction
-      expect(result.skipped_count).to eq 1
-      expect(account.transactions.where(description: "ACME Corp  PAY").count).to eq 1
+      # That column records what the bank printed on a row. A row it never
+      # printed has no balance, and replaying over it destroyed the only
+      # independent number the file carried. See docs/adr/0002.
+      expect(manual.reload.balance_cents).to be_nil
     end
   end
 
-  describe "#import with td_visa format" do
-    let(:account) { create(:account, name: "TD Visa") }
+  describe "deriving the opening checkpoint" do
+    let(:csv_content) do
+      <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
+      CSV
+    end
 
-    it "imports transactions from CSV" do
-      csv_content = <<~CSV
+    it "reads the balance standing before the earliest row off the bank's own column" do
+      result = import(csv_content, format: :td_chequing)
+
+      checkpoint = result.derived_checkpoint
+      expect(checkpoint).to be_persisted
+      expect(checkpoint.closed_on).to eq Date.new(2025, 11, 13)
+      expect(checkpoint.balance_cents).to eq 500_00
+      expect(checkpoint).to be_derived
+      expect(account.reload.balance).to eq Money.new(700_00, :cad)
+    end
+
+    it "signs a credit card's balance as debt" do
+      visa = create(:account, name: "TD Visa")
+      content = <<~CSV
         11/24/2025,BALANCE PROTECTION INS,20.67,,2109.88
         11/23/2025,TIM HORTONS #0788,3.70,,1924.29
       CSV
 
-      importer = described_class.new(user: user, account: account, import_format: :td_visa)
-      result = importer.import(csv_content)
+      result = import(content, format: :td_visa, into: visa)
 
-      # 3 transactions: opening balance + 2 imported
-      expect(result.imported_count).to eq 3
-      expect(result.error_count).to eq 0
+      # The card owed 1924.29 after a 3.70 charge, so it owed 1920.59 before it.
+      expect(result.derived_checkpoint.balance_cents).to eq(-192_059)
+      expect(result.derived_checkpoint.closed_on).to eq Date.new(2025, 11, 22)
+      # Anchor plus the two charges dated after it: -1920.59 - 3.70 - 20.67.
+      expect(visa.reload.balance).to eq Money.new(-194_496, :cad)
+    end
 
-      transactions = account.transactions.order(:occurred_on, :id)
-      expect(transactions.count).to eq 3
+    it "derives nothing for an account that already holds transactions" do
+      # Deriving an anchor for an account with history is exactly how the old
+      # opening balance came to contradict the rows behind it.
+      create(:transaction, account: account, occurred_on: Time.zone.parse("2025-10-01 12:00"))
 
-      # Opening balance (from earliest row: 1924.29 - 3.70 = 1920.59)
-      expect(transactions.first.description).to eq "Opening Balance"
+      result = import(csv_content, format: :td_chequing)
 
-      # Both CSV transactions should be expenses
-      expect(transactions.second.entry_type).to eq "expense"
-      expect(transactions.third.entry_type).to eq "expense"
+      expect(result.derived_checkpoint).to be_nil
+      expect(account.checkpoints).to be_empty
+    end
+
+    it "derives nothing for an account that already holds a checkpoint" do
+      create(:checkpoint, account: account, closed_on: Date.new(2025, 10, 31))
+
+      result = import(csv_content, format: :td_chequing)
+
+      expect(result.derived_checkpoint).to be_nil
+      expect(account.checkpoints.count).to eq 1
+    end
+
+    it "derives nothing from a format that carries no balance" do
+      mastercard = create(:account, name: "Mastercard")
+      content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+      CSV
+
+      result = import(content, format: :mastercard, into: mastercard)
+
+      expect(result.derived_checkpoint).to be_nil
+      expect(mastercard.checkpoints).to be_empty
+    end
+  end
+
+  describe "suggesting the closing checkpoint" do
+    let(:csv_content) do
+      <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
+      CSV
+    end
+
+    it "offers the file's last closing balance without recording it" do
+      result = import(csv_content, format: :td_chequing)
+
+      expect(result.suggested_checkpoint.closed_on).to eq Date.new(2025, 11, 17)
+      expect(result.suggested_checkpoint.balance_cents).to eq 700_00
+      expect(account.checkpoints.where(closed_on: Date.new(2025, 11, 17))).to be_empty
+    end
+
+    it "offers nothing when the account already asserts that day's close" do
+      create(:checkpoint, account: account, closed_on: Date.new(2025, 11, 17), balance_cents: 700_00)
+
+      expect(import(csv_content, format: :td_chequing).suggested_checkpoint).to be_nil
+    end
+
+    it "offers nothing from a format that carries no balance" do
+      mastercard = create(:account, name: "Mastercard")
+      content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+      CSV
+
+      expect(import(content, format: :mastercard, into: mastercard).suggested_checkpoint).to be_nil
+    end
+  end
+
+  describe "matching rows by occurrence" do
+    it "imports two identical purchases on one day as two" do
+      content = <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-14","ACME Corp  PAY",,"1000.00","2500.00"
+      CSV
+
+      result = import(content, format: :td_chequing)
+
+      expect(result.imported_count).to eq 2
+      expect(result.skipped_count).to eq 0
+      expect(account.transactions.where(description: "ACME Corp  PAY").count).to eq 2
+    end
+
+    it "contributes nothing from a re-imported overlapping period" do
+      content = <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
+      CSV
+
+      import(content, format: :td_chequing)
+      result = import(content, format: :td_chequing)
+
+      expect(result.imported_count).to eq 0
+      expect(result.skipped_count).to eq 2
+      expect(account.transactions.count).to eq 2
+    end
+
+    it "contributes only the occurrences after the ones already held" do
+      create(:transaction, account: account, occurred_on: Time.zone.parse("2025-11-14 00:00"),
+                           description: "ACME Corp  PAY", amount: 1000.00, entry_type: :income)
+
+      content = <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-14","ACME Corp  PAY",,"1000.00","2500.00"
+        "2025-11-14","ACME Corp  PAY",,"1000.00","3500.00"
+      CSV
+
+      result = import(content, format: :td_chequing)
+
+      expect(result.skipped_count).to eq 1
+      expect(result.imported_count).to eq 2
+      expect(account.transactions.where(description: "ACME Corp  PAY").count).to eq 3
+    end
+
+    it "ignores the balance column, which is not part of a row's identity" do
+      # The old rule tiebroke on balance, so a re-import at a different balance
+      # duplicated the row. Balance is provenance, not identity.
+      import(%("2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"\n), format: :td_chequing)
+
+      result = import(%("2025-11-14","ACME Corp  PAY",,"1000.00","9999.00"\n), format: :td_chequing)
+
+      expect(result.imported_count).to eq 0
+      expect(result.skipped_count).to eq 1
+    end
+
+    it "reports what it skipped" do
+      content = %("2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"\n)
+      import(content, format: :td_chequing)
+
+      skipped = import(content, format: :td_chequing).skipped_duplicates
+
+      expect(skipped.size).to eq 1
+      expect(skipped.first.description).to eq "ACME Corp  PAY"
+      expect(skipped.first.amount_cents).to eq 100_000
+      expect(skipped.first.entry_type).to eq :income
+    end
+
+    it "lets a Mastercard's genuine repeat charge through" do
+      # The parser writes no balance, so the old tiebreak could never engage and
+      # every legitimate second purchase of a day was discarded.
+      mastercard = create(:account, name: "Mastercard")
+      content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+      CSV
+
+      result = import(content, format: :mastercard, into: mastercard)
+
+      expect(result.imported_count).to eq 2
+      expect(result.skipped_count).to eq 0
+      expect(mastercard.transactions.count).to eq 2
+    end
+
+    it "still contributes nothing on a Mastercard re-import" do
+      mastercard = create(:account, name: "Mastercard")
+      content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+      CSV
+
+      import(content, format: :mastercard, into: mastercard)
+      result = import(content, format: :mastercard, into: mastercard)
+
+      expect(result.imported_count).to eq 0
+      expect(result.skipped_count).to eq 1
+      expect(mastercard.transactions.count).to eq 1
+    end
+  end
+
+  describe "provenance" do
+    it "records the file and the row it came from" do
+      csv_import = create(:csv_import, account: account, user: user)
+      content = <<~CSV
+        "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
+        "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
+      CSV
+
+      import(content, format: :td_chequing, csv_import: csv_import)
+
+      rows = account.transactions.order(:occurred_on)
+      expect(rows.map(&:csv_import_id)).to all(eq(csv_import.id))
+      expect(rows.map(&:import_row_number)).to eq([ 1, 2 ])
+      expect(rows.first).to be_imported
+    end
+
+    it "imports without one when no file is being retained" do
+      import(%("2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"\n), format: :td_chequing)
+
+      expect(account.transactions.first.csv_import_id).to be_nil
+      expect(account.transactions.first).not_to be_imported
     end
   end
 
   describe "#import with mastercard format" do
     let(:account) { create(:account, name: "Mastercard") }
 
-    it "imports transactions from CSV" do
-      csv_content = <<~CSV
+    it "imports purchases as expenses" do
+      content = <<~CSV
         "Description","Type","Card Holder Name","Date","Time","Amount"
         "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
         "LOBLAWS MAIN ST","PURCHASE","JOHN DOE","12/11/2025","01:25 AM","-79.05"
       CSV
 
-      importer = described_class.new(user: user, account: account, import_format: :mastercard)
-      result = importer.import(csv_content)
+      result = import(content, format: :mastercard)
 
       expect(result.imported_count).to eq 2
       expect(result.error_count).to eq 0
 
       transactions = account.transactions.order(:amount_cents)
-      expect(transactions.count).to eq 2
-
-      # Both should be expenses (purchases)
       expect(transactions.first.entry_type).to eq "expense"
       expect(transactions.first.amount).to eq Money.new(192, :cad)
       expect(transactions.first.description).to eq "TIM HORTONS #1723"
-
-      expect(transactions.second.entry_type).to eq "expense"
       expect(transactions.second.amount).to eq Money.new(7905, :cad)
     end
+  end
 
-    it "skips duplicates when re-importing the same CSV" do
-      csv_content = <<~CSV
-        "Description","Type","Card Holder Name","Date","Time","Amount"
-        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+  describe "#import with td_visa format" do
+    let(:account) { create(:account, name: "TD Visa") }
+
+    it "imports charges as expenses and keeps their printed balances" do
+      content = <<~CSV
+        11/24/2025,BALANCE PROTECTION INS,20.67,,2109.88
+        11/23/2025,TIM HORTONS #0788,3.70,,1924.29
       CSV
 
-      # First import
-      importer1 = described_class.new(user: user, account: account, import_format: :mastercard)
-      result1 = importer1.import(csv_content)
+      result = import(content, format: :td_visa)
 
-      expect(result1.imported_count).to eq 1
-      expect(account.transactions.count).to eq 1
-
-      # Second import of same data should skip all as duplicates
-      importer2 = described_class.new(user: user, account: account, import_format: :mastercard)
-      result2 = importer2.import(csv_content)
-
-      expect(result2.imported_count).to eq 0
-      expect(result2.skipped_count).to eq 1
-      expect(result2.skipped_duplicates.first.description).to eq "TIM HORTONS #1723"
-      expect(account.transactions.count).to eq 1
-    end
-
-    it "skips duplicate rows within the same CSV file" do
-      csv_content = <<~CSV
-        "Description","Type","Card Holder Name","Date","Time","Amount"
-        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
-        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
-      CSV
-
-      importer = described_class.new(user: user, account: account, import_format: :mastercard)
-      result = importer.import(csv_content)
-
-      # Should only import one, skip the duplicate
-      # (skipped_count includes opening balance skip + duplicate row)
-      expect(result.imported_count).to eq 1
-      expect(result.skipped_duplicates.count).to eq 1
-      expect(account.transactions.count).to eq 1
+      expect(result.imported_count).to eq 2
+      transactions = account.transactions.order(:occurred_on)
+      expect(transactions.map(&:entry_type)).to eq %w[expense expense]
+      expect(transactions.first.balance_cents).to eq 192_429
+      expect(transactions.second.balance_cents).to eq 210_988
     end
   end
 
   describe "#import with an unknown format" do
     it "raises an error" do
-      importer = described_class.new(user: user, account: account, import_format: :unknown)
-
-      expect { importer.import("data") }.to raise_error(ArgumentError, /Unknown import format/)
-    end
-  end
-
-  describe "balance reconciliation" do
-    describe "with td_chequing format" do
-      it "stores balance_cents on imported transactions" do
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-          "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        importer.import(csv_content)
-
-        transactions = account.transactions.where.not(description: "Opening Balance").order(:occurred_on)
-        expect(transactions.first.balance_cents).to eq 150_000
-        expect(transactions.second.balance_cents).to eq 70_000
-      end
-
-      it "detects balance mismatch and warns without creating adjustment" do
-        # Create an existing transaction that throws off the balance
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 10),
-          description: "Previous transaction",
-          amount: 200.00,
-          entry_type: :income
-        )
-
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        result = importer.import(csv_content)
-
-        expect(result.warnings.count).to eq 1
-        expect(result.warnings.first.message).to include("Balance mismatch detected")
-        expect(result.warnings.first.message).to include("You may need to manually reconcile")
-
-        # Should NOT have created a Balance Adjustment transaction
-        adjustment = account.transactions.find_by(description: "Balance Adjustment")
-        expect(adjustment).to be_nil
-      end
-
-      it "includes older imported transactions in balance (relies on duplicate detection for overlap)" do
-        # Create an existing recent transaction
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 20),
-          description: "Recent transaction",
-          amount: 500.00,
-          entry_type: :income
-        )
-
-        # Import an older transaction - this is a legitimate transaction that
-        # the bank reported later (e.g., delayed posting). It should be included
-        # in the balance. Duplicate detection will prevent double-counting if
-        # the same transaction is imported again.
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        result = importer.import(csv_content)
-
-        expect(result.imported_count).to eq 1
-
-        # The imported transaction should NOT be marked as excluded from balance
-        imported = account.transactions.find_by(description: "ACME Corp  PAY")
-        expect(imported.excludes_from_balance).to be false
-
-        # Account balance should include both transactions (500 + 1000)
-        expect(account.balance).to eq Money.new(150_000, :cad)
-      end
-
-      it "does not mark newer imported transactions as excluded from balance" do
-        # Create an existing older transaction
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 10),
-          description: "Old transaction",
-          amount: 200.00,
-          entry_type: :income
-        )
-
-        # Import a newer transaction
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        result = importer.import(csv_content)
-
-        expect(result.imported_count).to eq 1
-
-        # The imported transaction should NOT be marked as excluded from balance
-        imported = account.transactions.find_by(description: "ACME Corp  PAY")
-        expect(imported.excludes_from_balance).to be false
-      end
-
-      it "uses balance_cents for enhanced duplicate detection" do
-        # Create an existing transaction with matching attributes but different balance
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 14),
-          description: "ACME Corp  PAY",
-          amount: 1000.00,
-          entry_type: :income,
-          balance_cents: 150_000
-        )
-
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        result = importer.import(csv_content)
-
-        # Should be skipped as duplicate (same balance_cents)
-        expect(result.skipped_count).to eq 1
-        expect(account.transactions.count).to eq 1
-      end
-
-      it "imports transaction when balance_cents differs from existing" do
-        # Create an existing transaction with same date/amount/description but different balance
-        # This represents a legitimate separate transaction
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 14),
-          description: "ACME Corp  PAY",
-          amount: 1000.00,
-          entry_type: :income,
-          balance_cents: 50_000 # Different balance
-        )
-
-        csv_content = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        result = importer.import(csv_content)
-
-        # Should import as new transaction (different balance_cents)
-        expect(result.imported_count).to be >= 1
-        expect(account.transactions.where(description: "ACME Corp  PAY").count).to eq 2
-      end
-
-      it "replays newer existing transactions to update balance_cents" do
-        # Import initial transactions
-        csv_content_initial = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_chequing)
-        importer.import(csv_content_initial)
-
-        # Add a manual transaction after the import
-        manual_tx = create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 20),
-          description: "Manual entry",
-          amount: 100.00,
-          entry_type: :expense,
-          balance_cents: nil
-        )
-
-        # Import more transactions that include older dates
-        csv_content_new = <<~CSV
-          "2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"
-          "2025-11-17","UX215 TFR-TO C1234567","800.00",,"700.00"
-        CSV
-
-        importer2 = described_class.new(user: user, account: account, import_format: :td_chequing)
-        importer2.import(csv_content_new)
-
-        # The manual transaction should have its balance_cents updated
-        manual_tx.reload
-        expect(manual_tx.balance_cents).to eq 60_000 # 700.00 - 100.00 = 600.00
-      end
-    end
-
-    describe "with td_visa format" do
-      let(:account) { create(:account, name: "TD Visa") }
-
-      it "stores balance_cents on imported transactions" do
-        csv_content = <<~CSV
-          11/24/2025,BALANCE PROTECTION INS,20.67,,2109.88
-          11/23/2025,TIM HORTONS #0788,3.70,,1924.29
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_visa)
-        importer.import(csv_content)
-
-        transactions = account.transactions.where.not(description: "Opening Balance").order(:occurred_on)
-        expect(transactions.first.balance_cents).to eq 192_429 # Earlier transaction
-        expect(transactions.second.balance_cents).to eq 210_988 # Later transaction
-      end
-
-      it "detects balance mismatch and warns without creating adjustment for credit card" do
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 11, 20),
-          description: "Existing charge",
-          amount: 50.00,
-          entry_type: :expense
-        )
-
-        csv_content = <<~CSV
-          11/23/2025,TIM HORTONS #0788,3.70,,1924.29
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :td_visa)
-        result = importer.import(csv_content)
-
-        expect(result.warnings.count).to eq 1
-        adjustment = account.transactions.find_by(description: "Balance Adjustment")
-        expect(adjustment).to be_nil
-      end
-    end
-
-    describe "with mastercard format" do
-      let(:account) { create(:account, name: "Mastercard") }
-
-      it "skips balance reconciliation (no balance data)" do
-        create(:transaction,
-          account: account,
-          occurred_on: Time.new(2025, 12, 1),
-          description: "Existing",
-          amount: 100.00,
-          entry_type: :expense
-        )
-
-        csv_content = <<~CSV
-          "Description","Type","Card Holder Name","Date","Time","Amount"
-          "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
-        CSV
-
-        importer = described_class.new(user: user, account: account, import_format: :mastercard)
-        result = importer.import(csv_content)
-
-        # Should NOT create balance adjustment or warnings for Mastercard
-        expect(result.warnings).to be_empty
-        expect(account.transactions.find_by(description: "Balance Adjustment")).to be_nil
-      end
+      expect { import("data", format: :unknown) }.to raise_error(ArgumentError, /Unknown import format/)
     end
   end
 end

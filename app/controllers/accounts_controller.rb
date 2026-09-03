@@ -2,10 +2,14 @@ class AccountsController < ApplicationController
   before_action :set_account, only: %i[show edit update destroy]
 
   def index
-    @accounts = Account.order(:name)
+    @accounts = Account.includes(:checkpoints).order(:name)
   end
 
-  def show; end
+  def show
+    @checkpoints = @account.checkpoints.chronological.to_a
+    @audit = Checkpoints::Audit.new(@account)
+    @csv_imports = @account.csv_imports.newest_first.limit(10)
+  end
 
   def new
     @account = Account.new

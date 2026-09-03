@@ -1,0 +1,44 @@
+<%= form_with model: @checkpoint,
+              url: @checkpoint.persisted? ? checkpoint_path(@checkpoint) : account_checkpoints_path(@account),
+              class: "space-y-4" do |form| %>
+  <% if @checkpoint.errors.any? %>
+    <div class="rounded border border-rose-300 bg-rose-50 p-4 text-sm text-rose-700">
+      <ul class="list-inside list-disc">
+        <% @checkpoint.errors.full_messages.each do |message| %>
+          <li><%= message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div>
+    <%= form.label :closed_on, "Closing date", class: "block text-sm font-medium text-slate-700" %>
+    <%= form.date_field :closed_on, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    <p class="mt-1 text-xs text-slate-500">
+      The statement date. This is an end-of-day closing balance, so transactions dated on this day
+      are already inside it; only what follows adds to the balance.
+    </p>
+  </div>
+
+  <div>
+    <%= form.label :balance, "Closing balance", class: "block text-sm font-medium text-slate-700" %>
+    <%= form.number_field :balance, step: 0.01, class: "mt-1 w-full rounded border border-slate-300 px-3 py-2" %>
+    <p class="mt-1 text-xs text-slate-500">
+      Copy the number the statement prints. Enter debt as a negative amount — a credit card owing
+      $1,401.12 closes at -1401.12.
+    </p>
+  </div>
+
+  <% if @checkpoint.persisted? && @checkpoint.derived? %>
+    <p class="rounded border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+      This checkpoint was derived by the importer from the bank's own balance column and has never
+      been held against a statement. Correcting it here is exactly the act of verifying it, and
+      marks it verified.
+    </p>
+  <% end %>
+
+  <div>
+    <%= form.submit @checkpoint.persisted? ? "Save checkpoint" : "Record checkpoint", class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+    <%= link_to "Cancel", @account, class: "ml-3 text-sm text-slate-500" %>
+  </div>
+<% end %>

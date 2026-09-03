@@ -17,6 +17,112 @@
 </div>
 
 <div class="mt-6 rounded bg-white p-6 shadow">
+  <div class="flex items-start justify-between">
+    <div>
+      <h2 class="text-lg font-semibold">Balance</h2>
+      <p class="mt-1 text-3xl font-semibold <%= @account.balance >= Money.new(0) ? "text-emerald-600" : "text-rose-500" %>">
+        <%= humanized_money_with_symbol(@account.balance) %>
+      </p>
+      <% if (anchor = @account.latest_checkpoint) %>
+        <p class="mt-1 text-sm text-slate-500">
+          <%= humanized_money_with_symbol(anchor.balance) %> at close on <%= l(anchor.closed_on, format: :long) %>,
+          plus everything dated after it.
+        </p>
+      <% else %>
+        <p class="mt-1 text-sm text-amber-600">
+          No checkpoint: this is the sum of every transaction the account holds, including any
+          history that predates its real opening balance.
+        </p>
+      <% end %>
+    </div>
+    <%= link_to "Record checkpoint", new_account_checkpoint_path(@account), class: "rounded bg-emerald-600 px-4 py-2 text-white" %>
+  </div>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Checkpoints</h2>
+  <p class="mt-1 text-sm text-slate-500">
+    Each row asserts that the account closed at that amount on that date — the number a statement
+    prints. The balance hangs off the latest one.
+  </p>
+
+  <% if @checkpoints.any? %>
+    <table class="mt-4 w-full text-left text-sm">
+      <thead>
+        <tr class="text-slate-500">
+          <th class="py-2">Closed on</th>
+          <th class="py-2">Closing balance</th>
+          <th class="py-2">Source</th>
+          <th class="py-2">Interval since previous</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @checkpoints.each do |checkpoint| %>
+          <% interval = @audit.interval_ending_at(checkpoint) %>
+          <tr class="border-t border-slate-100 align-top">
+            <td class="py-3"><%= l(checkpoint.closed_on, format: :long) %></td>
+            <td class="py-3 font-semibold <%= checkpoint.balance_cents.negative? ? "text-rose-500" : "text-slate-800" %>">
+              <%= humanized_money_with_symbol(checkpoint.balance) %>
+            </td>
+            <td class="py-3">
+              <% if checkpoint.verified? %>
+                <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700" title="Entered or corrected by a person holding a statement">Verified</span>
+              <% else %>
+                <span class="rounded bg-slate-200 px-2 py-0.5 text-xs text-slate-600" title="Computed by the importer from the bank's own balance column; nobody has held it against a statement">Derived</span>
+              <% end %>
+            </td>
+            <td class="py-3">
+              <% if interval.nil? %>
+                <span class="text-slate-400">Earliest — nothing before it to check against</span>
+              <% elsif interval.balanced? %>
+                <span class="text-emerald-600">Balances</span>
+                <span class="text-slate-400">across <%= pluralize(interval.transaction_count, "transaction") %></span>
+              <% else %>
+                <span class="font-semibold text-rose-500">
+                  Off by <%= humanized_money_with_symbol(Money.new(interval.discrepancy_cents.abs, :cad)) %>
+                </span>
+                <p class="mt-1 text-xs text-slate-500">
+                  <%= pluralize(interval.transaction_count, "transaction") %> since
+                  <%= l(interval.opening.closed_on, format: :long) %> reach
+                  <%= humanized_money_with_symbol(Money.new(interval.expected_cents, :cad)) %>,
+                  against a checkpoint of
+                  <%= humanized_money_with_symbol(Money.new(interval.actual_cents, :cad)) %>.
+                  The difference is inside this interval.
+                </p>
+                <% if interval.stale_adjustment? %>
+                  <p class="mt-1 text-xs font-medium text-amber-700">
+                    A balance adjustment here no longer closes the gap it was made for — a checkpoint
+                    has been edited underneath it. It is flagged, not removed: delete or re-make it.
+                  </p>
+                <% else %>
+                  <%= button_to "Close this gap with an adjustment",
+                                checkpoint_adjustment_path(checkpoint),
+                                method: :post,
+                                data: { turbo_confirm: "Record a visible adjustment transaction for the difference on #{checkpoint.closed_on}?" },
+                                class: "mt-2 rounded border border-amber-400 px-3 py-1 text-xs text-amber-700" %>
+                <% end %>
+              <% end %>
+            </td>
+            <td class="py-3 text-right whitespace-nowrap">
+              <%= link_to "Edit", edit_checkpoint_path(checkpoint), class: "text-emerald-600" %>
+              <%= button_to "Delete", checkpoint_path(checkpoint), method: :delete,
+                            form_class: "inline",
+                            data: { turbo_confirm: @checkpoints.one? ? "This is the only checkpoint on #{@account.name}. Deleting it returns the account to summing every transaction it holds. Continue?" : "Delete this checkpoint?" },
+                            class: "ml-3 text-rose-500" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">
+      No checkpoints yet. Record one from a statement to anchor this account's balance.
+    </p>
+  <% end %>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
   <h2 class="text-lg font-semibold">Recent Transactions</h2>
   <% transactions = @account.transactions.order(occurred_on: :desc).limit(20) %>
   <% if transactions.any? %>
@@ -30,11 +136,20 @@
         </tr>
       </thead>
       <tbody>
+        <% anchor = @account.latest_checkpoint %>
         <% transactions.each do |tx| %>
           <tr class="border-t border-slate-100">
             <td class="py-3"><%= l(tx.occurred_on, format: :long) %></td>
             <td class="py-3"><%= tx.entry_type.humanize %></td>
-            <td class="py-3"><%= tx.description.presence || "—" %></td>
+            <td class="py-3">
+              <%= link_to tx.description.presence || "—", tx, class: "text-slate-700 hover:text-emerald-600" %>
+              <% if tx.adjustment? %>
+                <span class="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700">Adjustment</span>
+              <% end %>
+              <% if anchor && tx.occurred_on < anchor.closes_before %>
+                <span class="ml-2 rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-500" title="Dated on or before the latest checkpoint, so it does not contribute to the balance">Before checkpoint</span>
+              <% end %>
+            </td>
             <td class="py-3 text-right font-semibold <%= tx.income? ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(tx.amount_signed) %></td>
           </tr>
         <% end %>
@@ -42,5 +157,42 @@
     </table>
   <% else %>
     <p class="mt-4 text-sm text-slate-500">No transactions yet.</p>
+  <% end %>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Imported files</h2>
+  <p class="mt-1 text-sm text-slate-500">
+    Uploaded CSVs are kept, so an account can be rebuilt from its own sources.
+  </p>
+  <% if @csv_imports.any? %>
+    <table class="mt-4 w-full text-left text-sm">
+      <thead>
+        <tr class="text-slate-500">
+          <th class="py-2">Uploaded</th>
+          <th class="py-2">File</th>
+          <th class="py-2">Digest</th>
+          <th class="py-2 text-right">Rows kept</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @csv_imports.each do |csv_import| %>
+          <tr class="border-t border-slate-100">
+            <td class="py-3"><%= l(csv_import.created_at, format: :long) %></td>
+            <td class="py-3 text-slate-700"><%= csv_import.filename %></td>
+            <td class="py-3 font-mono text-xs text-slate-500"><%= csv_import.short_digest %></td>
+            <td class="py-3 text-right"><%= csv_import.transactions.count %></td>
+            <td class="py-3 text-right">
+              <% if csv_import.file.attached? %>
+                <%= link_to "Download", rails_blob_path(csv_import.file, disposition: "attachment"), class: "text-emerald-600" %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">No files imported into this account yet.</p>
   <% end %>
 </div>

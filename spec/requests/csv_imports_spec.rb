@@ -61,24 +61,64 @@ RSpec.describe "CsvImports", type: :request do
       CSV
     end
 
+    def upload(content = csv_content, filename: "transactions.csv")
+      Rack::Test::UploadedFile.new(StringIO.new(content), "text/csv", original_filename: filename)
+    end
+
     it "imports transactions from CSV" do
-      file = Rack::Test::UploadedFile.new(
-        StringIO.new(csv_content),
-        "text/csv",
-        original_filename: "transactions.csv"
-      )
-
-      # 3 transactions: opening balance + 2 CSV rows
+      # Two rows, two transactions. No synthetic opening balance row: the
+      # account's anchor is a checkpoint, not a transaction. See docs/adr/0002.
       expect {
-        post csv_imports_path, params: {
-          account_id: account.id,
-          csv_file: file
-        }
-      }.to change(Transaction, :count).by(3)
+        post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+      }.to change(Transaction, :count).by(2)
 
-      expect(response).to redirect_to(transactions_path)
-      follow_redirect!
-      expect(response.body).to include("Successfully imported 3 transactions")
+      expect(response.body).to include("Successfully imported 2 transactions")
+    end
+
+    it "derives an opening checkpoint for an account that held nothing" do
+      expect {
+        post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+      }.to change(account.checkpoints, :count).by(1)
+
+      checkpoint = account.checkpoints.chronological.first
+      # 1500.00 stands after a 1000.00 deposit on the 14th, so the 13th closed at 500.00.
+      expect(checkpoint.closed_on).to eq(Date.new(2025, 11, 13))
+      expect(checkpoint.balance_cents).to eq(500_00)
+      expect(checkpoint).to be_derived
+      expect(account.reload.balance).to eq(Money.new(700_00, :cad))
+    end
+
+    it "offers the file's closing balance as a checkpoint rather than recording it" do
+      post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+
+      expect(response.body).to include("Closing balance available")
+      expect(response.body).to include(CGI.escapeHTML(
+        new_account_checkpoint_path(account, closed_on: "2025-11-17", balance_cents: 700_00)
+      ))
+      expect(account.checkpoints.where(closed_on: Date.new(2025, 11, 17))).to be_empty
+    end
+
+    it "retains the uploaded file and records it as the rows' provenance" do
+      expect {
+        post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+      }.to change(CsvImport, :count).by(1)
+
+      csv_import = CsvImport.last
+      expect(csv_import.filename).to eq("transactions.csv")
+      expect(csv_import.digest).to eq(CsvImport.digest_for(csv_content))
+      expect(csv_import.file).to be_attached
+      expect(csv_import.file.download).to eq(csv_content)
+      expect(csv_import.transactions.pluck(:import_row_number)).to match_array([ 1, 2 ])
+    end
+
+    it "contributes nothing on a re-import of the same period" do
+      post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+
+      expect {
+        post csv_imports_path, params: { account_id: account.id, csv_file: upload }
+      }.not_to change(Transaction, :count)
+
+      expect(response.body).to include("Rows Already Held")
     end
 
     it "requires a CSV file" do

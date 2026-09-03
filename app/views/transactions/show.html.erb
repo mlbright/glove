@@ -3,6 +3,21 @@
     <p class="text-sm uppercase text-slate-500"><%= @transaction.entry_type.humanize %></p>
     <h1 class="text-3xl font-semibold <%= @transaction.income? ? "text-emerald-600" : "text-rose-500" %>"><%= humanized_money_with_symbol(@transaction.amount_signed) %></h1>
     <p class="mt-2 text-slate-600"><%= @transaction.account.name %> · <%= l(@transaction.occurred_on, format: :long) %></p>
+    <% if @transaction.adjustment? %>
+      <p class="mt-2">
+        <span class="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-700">Balance adjustment</span>
+        <% if (interval = Checkpoints::Audit.new(@transaction.account).interval_ending_at(@transaction.adjusted_checkpoint)) %>
+          <% if interval.balanced? %>
+            <span class="ml-2 text-xs text-slate-500">Closes the gap in <%= interval.label %>.</span>
+          <% else %>
+            <span class="ml-2 text-xs font-medium text-rose-500">
+              Stale: its checkpoint has been edited since, and the interval is off by
+              <%= humanized_money_with_symbol(Money.new(interval.discrepancy_cents.abs, :cad)) %> again.
+            </span>
+          <% end %>
+        <% end %>
+      </p>
+    <% end %>
   </div>
   <div class="flex gap-3">
     <%= link_to "Edit", edit_transaction_path(@transaction), class: "rounded border border-slate-300 px-4 py-2" %>
@@ -24,6 +39,39 @@
       </div>
     </dl>
     <p class="mt-4 text-sm text-slate-500"><%= @transaction.description.presence || "No description" %></p>
+    <% if @transaction.notes.present? %>
+      <p class="mt-2 text-sm text-slate-600"><%= @transaction.notes %></p>
+    <% end %>
+  </div>
+
+  <div class="rounded bg-white p-6 shadow">
+    <h2 class="text-lg font-semibold">Provenance</h2>
+    <% if @transaction.imported? %>
+      <dl class="mt-4 space-y-2 text-sm text-slate-600">
+        <div class="flex justify-between">
+          <dt>File</dt>
+          <dd><%= @transaction.csv_import.filename %></dd>
+        </div>
+        <div class="flex justify-between">
+          <dt>Row</dt>
+          <dd><%= @transaction.import_row_number || "—" %></dd>
+        </div>
+        <div class="flex justify-between">
+          <dt>Digest</dt>
+          <dd class="font-mono text-xs"><%= @transaction.csv_import.short_digest %></dd>
+        </div>
+        <div class="flex justify-between">
+          <dt>Imported</dt>
+          <dd><%= l(@transaction.csv_import.created_at, format: :long) %></dd>
+        </div>
+      </dl>
+      <p class="mt-3 text-xs text-slate-500">
+        Recorded for tracing only. Neither the digest nor the row number takes part in matching a
+        file's rows against what the account already holds.
+      </p>
+    <% else %>
+      <p class="mt-4 text-sm text-slate-500">Entered by hand.</p>
+    <% end %>
   </div>
 
   <div class="rounded bg-white p-6 shadow">
@@ -42,9 +90,9 @@
 
 <div class="mt-6 rounded bg-white p-6 shadow">
   <h2 class="text-lg font-semibold">Audit trail</h2>
-  <% if @transaction.transaction_revisions.any? %>
+  <% if @transaction.revisions.any? %>
     <ul class="mt-4 space-y-3 text-sm text-slate-600">
-      <% @transaction.transaction_revisions.order(recorded_at: :desc).each do |revision| %>
+      <% @transaction.revisions.newest_first.each do |revision| %>
         <li class="border-l-2 border-slate-200 pl-4">
           <p class="font-medium"><%= revision.action.humanize %> · <%= l(revision.recorded_at, format: :long) %></p>
           <pre class="mt-1 rounded bg-slate-50 p-2 text-xs"><%= JSON.pretty_generate(revision.change_log) %></pre>

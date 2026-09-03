@@ -13,7 +13,15 @@ Rails.application.routes.draw do
     root to: "dashboard#index", as: :authenticated_root
     get :dashboard, to: "dashboard#index"
 
-    resources :accounts
+    resources :accounts do
+      # new/create hang off the account; edit/update/destroy address the
+      # checkpoint directly.
+      resources :checkpoints, shallow: true, only: %i[new create edit update destroy]
+    end
+    # Closing a gap is an explicit instruction, never a side effect of anything.
+    resources :checkpoints, only: [] do
+      resource :adjustment, only: :create, controller: "checkpoint_adjustments"
+    end
     resources :transactions do
       collection do
         get :tag_cloud

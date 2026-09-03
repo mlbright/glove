@@ -91,6 +91,32 @@ RSpec.describe CsvImports::MastercardParser do
       expect(result.rows.first.description).to eq "REFUND FROM STORE (REFUND)"
     end
 
+    it "reports no balance rather than a zero one" do
+      csv_content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+      CSV
+
+      result = described_class.new(csv_content).parse
+
+      # This export carries no balance column. Writing zero made every row look
+      # like it closed at the same balance, which is what let the old duplicate
+      # rule discard genuine repeat charges. See docs/adr/0002.
+      expect(result.rows.first.balance_cents).to be_nil
+    end
+
+    it "numbers each row by its position in the file, as provenance" do
+      csv_content = <<~CSV
+        "Description","Type","Card Holder Name","Date","Time","Amount"
+        "TIM HORTONS #1723","PURCHASE","JOHN DOE","12/11/2025","01:35 AM","-1.92"
+        "LOBLAWS MAIN ST","PURCHASE","JOHN DOE","12/11/2025","01:25 AM","-79.05"
+      CSV
+
+      result = described_class.new(csv_content).parse
+
+      expect(result.rows.map(&:row_index)).to eq([ 0, 1 ])
+    end
+
     it "handles amounts with large values" do
       csv_content = <<~CSV
         "Description","Type","Card Holder Name","Date","Time","Amount"

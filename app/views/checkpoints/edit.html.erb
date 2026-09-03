@@ -1,0 +1,27 @@
+<h1 class="text-2xl font-semibold text-slate-900">Edit checkpoint</h1>
+<p class="mt-1 text-sm text-slate-500">
+  On <strong><%= @account.name %></strong>. Every edit is recorded below.
+</p>
+<div class="mt-6 max-w-xl rounded bg-white p-6 shadow">
+  <%= render "form" %>
+</div>
+
+<div class="mt-6 max-w-xl rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Audit trail</h2>
+  <p class="mt-1 text-sm text-slate-500">
+    The balance hangs off this number, so nothing about it changes unrecorded.
+  </p>
+  <% revisions = @checkpoint.revisions.newest_first %>
+  <% if revisions.any? %>
+    <ul class="mt-4 space-y-3 text-sm text-slate-600">
+      <% revisions.each do |revision| %>
+        <li class="border-l-2 border-slate-200 pl-4">
+          <p class="font-medium"><%= revision.action.humanize %> · <%= l(revision.recorded_at, format: :long) %></p>
+          <pre class="mt-1 rounded bg-slate-50 p-2 text-xs"><%= JSON.pretty_generate(revision.change_log) %></pre>
+        </li>
+      <% end %>
+    </ul>
+  <% else %>
+    <p class="mt-4 text-sm text-slate-500">No revisions yet.</p>
+  <% end %>
+</div>
