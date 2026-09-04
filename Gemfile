@@ -74,8 +74,7 @@ end
 
 group :test do
   gem "capybara"
-  gem "selenium-webdriver"
-  gem "webdrivers"
+  gem "selenium-webdriver", ">= 4.14.0"
   gem "database_cleaner-active_record"
   gem "simplecov", require: false
 end
