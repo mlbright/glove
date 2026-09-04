@@ -7,8 +7,15 @@ module CsvImports
   # Account enum, the account form, the import form's reference block, and the
   # Importer all read from here, so teaching Glove a new bank is one edit.
   class Format
-    Definition = Data.define(:key, :label, :parser, :reconciles_balance, :balance_is_debt, :columns, :example) do
+    Definition = Data.define(:key, :label, :parser, :reconciles_balance, :balance_is_debt,
+                             :newest_first, :columns, :example) do
       def reconciles_balance? = reconciles_balance
+
+      # Whether the export lists its most recent row first. It decides how a
+      # row's position in the file translates into the order things happened,
+      # which the importer needs to insert rows chronologically and the row
+      # audit needs to walk them. See docs/adr/0003.
+      def newest_first? = newest_first
 
       # Whether the format's balance column counts what is owed rather than
       # what is held. A credit card's statement prints its debt as a positive
@@ -29,6 +36,7 @@ module CsvImports
         parser: "CsvImports::TdChequingParser",
         reconciles_balance: true,
         balance_is_debt: false,
+        newest_first: false,
         columns: "Date (YYYY-MM-DD), Description, Debit, Credit, Balance",
         example: '"2025-11-14","ACME Corp  PAY",,"1000.00","1500.00"'
       ),
@@ -38,6 +46,7 @@ module CsvImports
         parser: "CsvImports::TdVisaParser",
         reconciles_balance: true,
         balance_is_debt: true,
+        newest_first: true,
         columns: "Date (MM/DD/YYYY), Description, Debit, Credit, Balance",
         example: "11/24/2025,BALANCE PROTECTION INS,20.67,,2109.88"
       ),
@@ -47,6 +56,7 @@ module CsvImports
         parser: "CsvImports::MastercardParser",
         reconciles_balance: false,
         balance_is_debt: true,
+        newest_first: false,
         columns: "Header row, then Description, Type, Card Holder Name, Date (MM/DD/YYYY), Time, Amount",
         example: '"TIM HORTONS #1723","PURCHASE","JOHN","12/11/2025","01:35 AM","-1.92"'
       )

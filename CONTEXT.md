@@ -55,6 +55,28 @@ two years into a discrepancy provably inside one month.
 
 A mismatch is reported and never repaired silently.
 
+### Row Audit
+
+The check of an Account's rows against the running balance its bank printed
+beside each one. Between two consecutive balance-bearing rows the bank is
+stating an equation — the balance moved by exactly the later row's signed
+amount — so every row is checkable against its neighbour using nothing but data
+already stored. Where Balance Reconciliation confines a difference to the
+interval between two statements, this confines it to the gap between two rows.
+
+It runs only where the Import Format carries a balance column, which the PC
+Financial Mastercard's does not; on that account it reports that it cannot run,
+rather than passing silently. The chain suspends at a row carrying no balance,
+such as one entered by hand, and across the join between two CSV Imports, whose
+rows are adjacent in the Account but were never adjacent in any statement.
+
+A violation names a pair, not a culprit: the chain proves that two adjacent rows
+disagree, not which of them is wrong, so nothing is reordered, re-signed or
+deleted on its own account. Rows sharing a date are ordered by their number
+within the file, and for rows imported before that number was recorded the order
+is inferred from insertion — a violation resting on that inference is reported
+as the weaker evidence it is.
+
 ### Adjustment
 
 An ordinary, clearly labelled transaction that closes the gap in one

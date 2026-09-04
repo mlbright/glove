@@ -153,6 +153,11 @@ account is rebuilt from re-downloaded statements, and the impossibility of doing
 this for any other account is why retention is part of this decision rather than
 a later improvement.
 
+ADR 3 partly overturns that paragraph. The bank's own balance column, which this
+decision reads at only two rows per file, proves that some of those duplicates
+cannot be distinct events, and 28 of the 45 excess rows were removed on that
+evidence alone. The remaining 17, worth $410.41, still need the statements.
+
 Deleting an account's last remaining checkpoint returns it to summing every
 transaction, with a warning. This is the pre-checkpoint behaviour and it is
 wrong in the ways described above, but refusing the deletion outright would

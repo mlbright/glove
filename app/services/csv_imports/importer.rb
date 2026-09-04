@@ -69,15 +69,12 @@ module CsvImports
 
     def format_definition = Format.fetch(@import_format)
 
-    # Sort rows into the order they happened.
-    # TD Chequing and Mastercard: already chronological, smallest row_index first.
-    # TD Visa: reverse chronological in the CSV, so same-date rows run backwards.
+    # Sort rows into the order they happened. A date alone does not settle it,
+    # since a bank stamps every row of a day at the same time, so position in
+    # the file breaks the tie — negated for an export that runs newest first.
     def sort_rows_chronologically(rows)
-      if @import_format == "td_visa"
-        rows.sort_by { |r| [ r.occurred_at, -row_index(r) ] }
-      else
-        rows.sort_by { |r| [ r.occurred_at, row_index(r) ] }
-      end
+      direction = format_definition.newest_first? ? -1 : 1
+      rows.sort_by { |r| [ r.occurred_at, direction * row_index(r) ] }
     end
 
     def row_index(row) = row.respond_to?(:row_index) && row.row_index ? row.row_index : 0

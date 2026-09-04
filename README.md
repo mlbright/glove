@@ -19,6 +19,14 @@ The name "Glove" is inspired by the idea of customization and fit, much like a g
 
 Most of the code was written by chatting in Agent mode with Claude Opus 4.5.
 
+## Design decisions
+
+[CONTEXT.md](CONTEXT.md) defines the vocabulary — account, import format,
+checkpoint, occurrence matching, row audit — and [docs/adr](docs/adr) records
+the decisions that produced it, including why a balance anchors to a checkpoint
+rather than to an opening transaction, and why a row's position in its file is
+used to order rows but never to identify them.
+
 ## Prerequisites
 
 - Ruby (pinned in `mise.toml`; install with [mise](https://mise.jdx.dev/): `mise install`)
@@ -96,21 +104,36 @@ app at the `/glove` subpath), S3 backups, and machine migration.
 ## Features
 
 - **Dashboard** summarizing total income, expenses, account balances, and recent import activity.
-- **Transactions** with CRUD UI, per-account scoping, tag cloud, status tracking, audit trail, and optional linkage to import batches.
-- **Accounts** support multiple financial sources (checking, savings, credit card, etc.).
+- **Transactions** with CRUD UI, per-account scoping, tag cloud, status tracking, audit trail, and provenance back to the file each imported row came from.
+- **Accounts** support multiple financial sources (chequing, savings, credit card, etc.). Each account has at most one import format, so choosing the account settles which parser reads its file.
 - **Tags** with automatic slugging and aggregated cloud view.
-- **Bulk CSV import** using saved templates to map columns to transaction attributes; results logged per batch with audit history.
+- **CSV import** for the bank exports in `CsvImports::Format`, matching rows by occurrence so a re-imported overlapping period contributes nothing while two identical purchases on one day still import as two. Uploaded files are retained.
+- **Checkpoints and balance auditing** anchoring each balance to a date a statement asserts, and checking imported rows both between checkpoints and against the running balance the bank printed beside each row.
 - **OAuth authentication** via Google with Devise + OmniAuth, restricted to an allowlist of email addresses.
 
-## Bulk import workflow
+## Import workflow
 
-1. Create an Import Template specifying CSV delimiter, headers, and column mappings (e.g., `Amount → amount`, `Category → tag_list`). If your CSV lacks headers, enter column numbers (`1`, `2`, etc.) instead of column names.
-2. Upload a CSV file in a new Import Batch and start the import.
-3. Monitor completion status, processed/failed counts, and error notes from the batch detail view.
+1. Set an account's import format (Account → Edit). Without one there is no way to read a file for it, and the account cannot be imported into.
+2. Upload the bank's CSV export against that account. Rows already held are skipped and reported.
+3. The result names any opening checkpoint derived from the file, offers the closing balance it asserts, and reports any interval that does not balance.
+
+## Balances
+
+An account's balance is its latest checkpoint plus the transactions dated
+strictly after it, rather than a sum over every row it holds. Two checks run
+against that:
+
+- **Between checkpoints.** Consecutive checkpoints are validated against each other, so a difference is reported as contained within one interval rather than smeared across the account's whole history.
+- **Between rows.** For the formats whose export carries a running balance, consecutive rows must differ by exactly the later row's amount. Available from the account page and from `rails 'balances:audit[Account Name]'`.
+
+Both report and never repair. Closing a gap takes an explicit instruction and
+produces an ordinary, visible, deletable transaction.
 
 ## Audit logging
 
-Every transaction create/update/destroy writes a `TransactionRevision` with a timestamped change log for traceability.
+Every create, update and destroy of a transaction or a checkpoint writes a
+`Revision` holding a timestamped change log and who acted, so a removed row
+remains reconstructible.
 
 ## Accessibility & Security
 

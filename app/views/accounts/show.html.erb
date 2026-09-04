@@ -123,6 +123,94 @@
 </div>
 
 <div class="mt-6 rounded bg-white p-6 shadow">
+  <h2 class="text-lg font-semibold">Row audit</h2>
+  <% unless @row_audit.supported? %>
+    <p class="mt-1 text-sm text-slate-500">
+      Between two consecutive rows a bank that prints a running balance is stating an equation: the
+      balance moved by exactly the later row's amount. Where the checkpoint audit confines a
+      difference to the interval between two statements, this confines it to the gap between two rows.
+    </p>
+    <p class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+      <span class="font-medium text-slate-700">Not available on this account.</span>
+      <%= @account.importable? ? "#{@account.import_format_label} exports carry no balance column" : "This account has no import format" %>,
+      so there is nothing to check each row against. It keeps the checkpoint audit above and nothing
+      finer. A clean row audit elsewhere is not a clean bill of health here.
+    </p>
+  <% else %>
+    <p class="mt-1 text-sm text-slate-500">
+      Each row is checked against the balance the bank printed beside it: consecutive balances must
+      differ by exactly the later row's amount. A violation is reported and never repaired — the
+      chain proves two adjacent rows disagree, not which of them is wrong.
+    </p>
+
+    <div class="mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-sm">
+      <% if @row_audit.balanced? %>
+        <span class="font-semibold text-emerald-600">
+          <%= pluralize(@row_audit.checked_count, "pair") %> checked, none in violation
+        </span>
+      <% else %>
+        <span class="font-semibold text-rose-500">
+          <%= pluralize(@row_audit.violations.size, "violation") %> across
+          <%= pluralize(@row_audit.checked_count, "checked pair") %>
+        </span>
+        <span class="text-slate-500">
+          leaving <%= humanized_money_with_symbol(Money.new(@row_audit.residual_cents.abs, :cad)) %> unexplained
+        </span>
+      <% end %>
+      <% if @row_audit.suspension_count.positive? %>
+        <span class="text-slate-400"
+              title="A row carrying no balance, or the join between two files whose rows were never adjacent in any statement">
+          chain suspended <%= pluralize(@row_audit.suspension_count, "time") %>
+        </span>
+      <% end %>
+    </div>
+
+    <% if @row_audit.violations.any? %>
+      <table class="mt-4 w-full text-left text-sm">
+        <thead>
+          <tr class="text-slate-500">
+            <th class="py-2">Reported against</th>
+            <th class="py-2">Preceded by</th>
+            <th class="py-2 text-right">Column moved</th>
+            <th class="py-2 text-right">Row explains</th>
+            <th class="py-2 text-right">Unexplained</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @row_audit.violations.first(50).each do |pair| %>
+            <tr class="border-t border-slate-100 align-top">
+              <td class="py-3">
+                <%= link_to pair.later.description.presence || "—", pair.later, class: "text-slate-700 hover:text-emerald-600" %>
+                <p class="text-xs text-slate-400"><%= l(pair.later.occurred_on, format: :long) %></p>
+              </td>
+              <td class="py-3 text-slate-500">
+                <%= link_to pair.earlier.description.presence || "—", pair.earlier, class: "hover:text-emerald-600" %>
+                <% if pair.order_assumed? %>
+                  <p class="mt-1 text-xs text-amber-700" title="Both rows are stamped at midnight on the same day and neither carries a row number, so their order is inferred from the order they were inserted">
+                    Same day, order assumed — weaker evidence than a pair dated apart.
+                  </p>
+                <% end %>
+              </td>
+              <td class="py-3 text-right whitespace-nowrap"><%= humanized_money_with_symbol(Money.new(pair.actual_cents, :cad)) %></td>
+              <td class="py-3 text-right whitespace-nowrap"><%= humanized_money_with_symbol(Money.new(pair.expected_cents, :cad)) %></td>
+              <td class="py-3 text-right font-semibold whitespace-nowrap text-rose-500"><%= humanized_money_with_symbol(Money.new(pair.residual_cents, :cad)) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+      <% if @row_audit.violations.size > 50 %>
+        <p class="mt-3 text-sm text-slate-500">… and <%= @row_audit.violations.size - 50 %> more.</p>
+      <% end %>
+      <p class="mt-3 text-xs text-slate-500">
+        The row named is the later of the two, which is where the disagreement surfaces rather than a
+        claim about which row is at fault: residuals that nearly cancel across neighbouring pairs
+        usually mean an ordering or a duplicate, not two defective rows.
+      </p>
+    <% end %>
+  <% end %>
+</div>
+
+<div class="mt-6 rounded bg-white p-6 shadow">
   <h2 class="text-lg font-semibold">Recent Transactions</h2>
   <% transactions = @account.transactions.order(occurred_on: :desc).limit(20) %>
   <% if transactions.any? %>

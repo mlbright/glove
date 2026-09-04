@@ -8,6 +8,7 @@ class AccountsController < ApplicationController
   def show
     @checkpoints = @account.checkpoints.chronological.to_a
     @audit = Checkpoints::Audit.new(@account)
+    @row_audit = Transactions::BalanceAudit.new(@account)
     @csv_imports = @account.csv_imports.newest_first.limit(10)
   end
 
